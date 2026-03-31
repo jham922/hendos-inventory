@@ -43,6 +43,13 @@
   .logo-sub { font-size: 10px; color: var(--text-muted); letter-spacing: 2px; text-transform: uppercase; font-weight: 500; display: none; }
   .header-date { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text-muted); }
 
+
+  /* DESKTOP TABS */
+  .desktop-tabs { display: none; }
+  .tab { padding: 14px 20px; font-size: 12px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: var(--text-muted); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s; white-space: nowrap; }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--amber); border-bottom-color: var(--amber); }
+
   /* BOTTOM NAV (mobile) */
   .bottom-nav {
     position: fixed; bottom: 0; left: 0; right: 0;
@@ -164,6 +171,13 @@
   .stat-val.red { color: var(--red); }
   .stat-val.green { color: var(--green); }
 
+
+  /* VENDOR BADGES */
+  .vendor-southern { display:inline-block;padding:1px 7px;border-radius:3px;font-size:10px;font-weight:700;letter-spacing:0.5px;background:rgba(212,130,42,0.15);color:#d4822a; }
+  .vendor-gate { display:inline-block;padding:1px 7px;border-radius:3px;font-size:10px;font-weight:700;letter-spacing:0.5px;background:rgba(74,158,107,0.15);color:#4a9e6b; }
+  .vendor-chef { display:inline-block;padding:1px 7px;border-radius:3px;font-size:10px;font-weight:700;letter-spacing:0.5px;background:rgba(104,90,200,0.15);color:#a090e0; }
+  .vendor-none { display:inline-block;padding:1px 7px;border-radius:3px;font-size:10px;font-weight:700;letter-spacing:0.5px;background:rgba(90,82,73,0.15);color:#5a5249; }
+
   /* ORDER DASHBOARD */
   .order-section { margin-bottom: 20px; }
   .order-section-title { font-family: 'Bebas Neue', sans-serif; font-size: 15px; letter-spacing: 3px; color: var(--text-muted); margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px solid var(--border); text-transform: uppercase; }
@@ -211,30 +225,49 @@
   .empty-state .es-icon { font-size: 44px; margin-bottom: 12px; }
   .empty-state .es-title { font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 2px; color: var(--text-muted); margin-bottom: 8px; }
 
-  /* DESKTOP ENHANCEMENTS */
-  @media (min-width: 640px) {
-    header { padding: 0 24px; height: 64px; }
-    .logo-main { font-size: 28px; }
-    .logo-sub { display: inline; }
-    main { padding: 24px; }
-    .stats-row { grid-template-columns: repeat(4, 1fr); }
-    .cocktail-grid { grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); }
-    .inv-card-name { font-size: 14px; }
-    .qty-input { width: 80px; font-size: 14px; }
+  /* ===================== RESPONSIVE ===================== */
+
+  /* MOBILE only */
+  @media (max-width: 767px) {
+    .desktop-tabs { display: none; }
+    .bottom-nav { display: flex; }
+    body { padding-bottom: calc(70px + env(safe-area-inset-bottom)); }
+    .inv-table-wrap { display: none; }
+    .inv-card { display: flex; }
   }
 
-  /* TABLE VIEW on desktop for inventory */
-  @media (min-width: 800px) {
-    .inv-table { width: 100%; border-collapse: collapse; display: table; }
+  /* DESKTOP only */
+  @media (min-width: 768px) {
+    .bottom-nav { display: none !important; }
+    body { padding-bottom: 0; }
+    header { padding: 0 28px; height: 64px; }
+    .logo-main { font-size: 30px; }
+    .logo-sub { display: inline; }
+    main { padding: 24px 28px; }
+    .stats-row { grid-template-columns: repeat(4, 1fr); }
+    .cocktail-grid { grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); }
+    .inv-card { display: none !important; }
+    .inv-table-wrap { display: block; }
+    .inv-table { width: 100%; border-collapse: collapse; }
     .inv-table thead tr { background: rgba(0,0,0,0.3); }
     .inv-table th { padding: 10px 16px; text-align: left; font-size: 10px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-dim); white-space: nowrap; }
-    .inv-table td { padding: 10px 16px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    .inv-table td { padding: 10px 16px; border-bottom: 1px solid var(--border); vertical-align: middle; font-size: 13px; }
     .inv-table tr:last-child td { border-bottom: none; }
-    .inv-card { display: none; }
-    .desktop-only { display: table-row !important; }
+    .inv-table tr:hover td { background: rgba(212,130,42,0.04); }
+    .qty-input { width: 80px; padding: 6px 8px; font-size: 13px; }
+    .desktop-tabs { display: flex; }
+    .chip-row { flex-wrap: wrap; }
+    .controls { flex-wrap: nowrap; }
   }
-  @media (max-width: 799px) {
-    .inv-table { display: none; }
+
+  /* PRINT */
+  @media print {
+    .bottom-nav, .desktop-tabs, .controls, .chip-row, .upload-zone { display: none !important; }
+    body { background: white; color: black; padding-bottom: 0; }
+    .panel { border: 1px solid #ccc; }
+    .inv-table td, .inv-table th { color: black !important; }
+    .inv-card { display: none !important; }
+    .inv-table-wrap { display: block !important; }
   }
 </style>
 </head>
@@ -245,9 +278,18 @@
     <span class="logo-main">Hendo's Barrel House</span>
     <span class="logo-sub">Inventory System</span>
   </div>
-  <span class="header-date" id="headerDate"></span>
+  <span class="header-date" id="headerDate"></span><span id="syncStatus" style="font-family:'DM Mono',monospace;font-size:11px;margin-left:12px;color:var(--text-muted)">⟳ Loading...</span>
 </header>
 
+<!-- DESKTOP TABS -->
+<div class="desktop-tabs" style="background:var(--surface);border-bottom:1px solid var(--border);padding:0 28px;gap:4px;">
+  <div class="tab active" onclick="showTab('inventory')" id="dtab-inventory">📋 Inventory</div>
+  <div class="tab" onclick="showTab('order')" id="dtab-order">🛒 Order Dashboard</div>
+  <div class="tab" onclick="showTab('cocktails')" id="dtab-cocktails">🍹 Cocktail Builds</div>
+  <div class="tab" onclick="showTab('toast')" id="dtab-toast">📊 Toast POS</div>
+</div>
+
+<!-- MOBILE BOTTOM NAV -->
 <nav class="bottom-nav">
   <button class="nav-item active" onclick="showTab('inventory')" id="nav-inventory">
     <span class="nav-icon">📋</span>Inventory
@@ -285,6 +327,9 @@
     <div class="chip" id="chip-FOH Supplies" onclick="setCategory('FOH Supplies')">🍽 FOH</div>
     <div class="chip" id="chip-low" onclick="toggleFilter('low')">⚠️ Low</div>
     <div class="chip" id="chip-out" onclick="toggleFilter('out')">🚨 Out</div>
+    <div class="chip" id="chip-Southern" onclick="setVendor('Southern')">🟠 Southern</div>
+    <div class="chip" id="chip-Gate City" onclick="setVendor('Gate City')">🟢 Gate City</div>
+    <div class="chip" id="chip-Chef Orders" onclick="setVendor('Chef Orders')">🟣 Chef Orders</div>
   </div>
   <div id="inventoryPanels"></div>
 </div>
@@ -362,172 +407,221 @@ const COCKTAILS = [
 ];
 
 const DEFAULT_ITEMS = [
-  // SPIRITS
-  {id:"s1",name:"Well Vodka (3 olives)",par:"1 case",category:"Spirits",onHand:null},
-  {id:"s2",name:"Grey Goose",par:"6 bottles",category:"Spirits",onHand:null},
-  {id:"s3",name:"Citron",par:"1 case",category:"Spirits",onHand:null},
-  {id:"s4",name:"Kettle One",par:"6 bottles",category:"Spirits",onHand:null},
-  {id:"s5",name:"Beefeater",par:"1 case",category:"Spirits",onHand:null},
-  {id:"s6",name:"Bombay Sapphire",par:"3 bottles",category:"Spirits",onHand:null},
-  {id:"s7",name:"Hendrick's",par:"3 bottles",category:"Spirits",onHand:null},
-  {id:"s8",name:"Captain Morgan",par:"3 bottles",category:"Spirits",onHand:null},
-  {id:"s9",name:"Bacardi",par:"6 bottles",category:"Spirits",onHand:null},
-  {id:"s10",name:"Meyer's",par:"2 bottles",category:"Spirits",onHand:null},
-  {id:"s11",name:"Jose Cuervo Reposado",par:"2 cases",category:"Spirits",onHand:null},
-  {id:"s12",name:"Well Tequila (cuervo silver)",par:"1 case",category:"Spirits",onHand:null},
-  {id:"s13",name:"1800 coconut",par:"1 case",category:"Spirits",onHand:null},
-  {id:"s14",name:"El Tosoro Reposado",par:"6 bottles",category:"Spirits",onHand:null},
-  {id:"s15",name:"Patron Silver",par:"6 bottles",category:"Spirits",onHand:null},
-  {id:"s16",name:"Patron Anejo",par:"3 bottles",category:"Spirits",onHand:null},
-  {id:"s17",name:"Patron Reposado",par:"6 bottles",category:"Spirits",onHand:null},
-  {id:"s18",name:"De La Familia Anejo",par:"2 bottles",category:"Spirits",onHand:null},
-  {id:"s19",name:"De La Familia Repo",par:"2 bottles",category:"Spirits",onHand:null},
-  {id:"s20",name:"De La Familia Platino",par:"2 bottles",category:"Spirits",onHand:null},
-  {id:"s21",name:"Don Julio Blanco",par:"6 bottles",category:"Spirits",onHand:null},
-  {id:"s22",name:"Don Julio 70",par:"3 bottles",category:"Spirits",onHand:null},
-  {id:"s23",name:"Don Julio 1942",par:"2 bottles",category:"Spirits",onHand:null},
-  {id:"s24",name:"Herradura Ultra",par:"3 bottles",category:"Spirits",onHand:null},
-  {id:"s25",name:"Herradura Silver",par:"6 bottles",category:"Spirits",onHand:null},
-  {id:"s26",name:"400 Conejos Mezcal",par:"2 cases",category:"Spirits",onHand:null},
-  {id:"s27",name:"Bulleit Rye Whiskey",par:"6 bottles",category:"Spirits",onHand:null},
-  {id:"s28",name:"Maker's Mark",par:"1 case",category:"Spirits",onHand:null},
-  {id:"s29",name:"Jack Daniel's",par:"1 case",category:"Spirits",onHand:null},
-  {id:"s30",name:"Old Forester",par:"1 case",category:"Spirits",onHand:null},
-  {id:"s31",name:"Buffalo Trace",par:"1 case",category:"Spirits",onHand:null},
-  {id:"s32",name:"Jameson",par:"2 cases",category:"Spirits",onHand:null},
-  {id:"s33",name:"Knob Creek",par:"2 bottles",category:"Spirits",onHand:null},
-  {id:"s34",name:"Fireball",par:"2 bottles",category:"Spirits",onHand:null},
-  {id:"s35",name:"Toki",par:"4 bottles",category:"Spirits",onHand:null},
-  {id:"s36",name:"Crown Royal",par:"2 bottles",category:"Spirits",onHand:null},
-  {id:"s37",name:"Glenlivet",par:"2 bottles",category:"Spirits",onHand:null},
-  {id:"s38",name:"Dewars",par:"2 bottles",category:"Spirits",onHand:null},
-  {id:"s39",name:"Chivas Regal",par:"2 bottles",category:"Spirits",onHand:null},
-  {id:"s40",name:"Macallan 12",par:"2 bottles",category:"Spirits",onHand:null},
-  {id:"s41",name:"Glenfiddich",par:"2 bottles",category:"Spirits",onHand:null},
-  {id:"s42",name:"Gran Marnier",par:"4 bottles",category:"Spirits",onHand:null},
-  {id:"s43",name:"Cointreau",par:"4 bottles",category:"Spirits",onHand:null},
-  {id:"s44",name:"Italicus",par:"2 bottles",category:"Spirits",onHand:null},
-  {id:"s45",name:"Aperol",par:"1 case",category:"Spirits",onHand:null},
-  {id:"s46",name:"Chambord",par:"2 bottles",category:"Spirits",onHand:null},
-  {id:"s47",name:"Cherry Heering",par:"2 bottles",category:"Spirits",onHand:null},
-  {id:"s48",name:"Vermouth (Dry)",par:"3 bottles",category:"Spirits",onHand:null},
-  {id:"s49",name:"Vermouth (Sweet)",par:"3 bottles",category:"Spirits",onHand:null},
-  {id:"s50",name:"Luxardo Amaretto",par:"2 bottles",category:"Spirits",onHand:null},
-  {id:"s51",name:"Peach Schnapps",par:"2 bottles",category:"Spirits",onHand:null},
-  // BEER KEGS
-  {id:"b1",name:"Mistress Blonde",par:"5 kegs",category:"Beer/Wine",onHand:null},
-  {id:"b2",name:"El Hendo",par:"5 kegs",category:"Beer/Wine",onHand:null},
-  {id:"b3",name:"West Coast IPA",par:"5 kegs",category:"Beer/Wine",onHand:null},
-  {id:"b4",name:"Pale Ale",par:"3 kegs",category:"Beer/Wine",onHand:null},
-  {id:"b5",name:"Hazy Ex",par:"5 kegs",category:"Beer/Wine",onHand:null},
-  {id:"b6",name:"Abnormal American",par:"2 kegs",category:"Beer/Wine",onHand:null},
-  {id:"b7",name:"Abnormal Heff",par:"2 kegs",category:"Beer/Wine",onHand:null},
-  {id:"b8",name:"Modelo",par:"3 kegs",category:"Beer/Wine",onHand:null},
-  {id:"b9",name:"394 Pale Ale",par:"2 kegs",category:"Beer/Wine",onHand:null},
-  {id:"b10",name:"Cali Squeeze",par:"2 kegs",category:"Beer/Wine",onHand:null},
-  {id:"b11",name:"Mason Red Ale",par:"2 kegs",category:"Beer/Wine",onHand:null},
-  {id:"b12",name:"Mason Double Hazy",par:"2 kegs",category:"Beer/Wine",onHand:null},
-  {id:"b13",name:"Mason Blonde",par:"3 kegs",category:"Beer/Wine",onHand:null},
-  {id:"b14",name:"Abnormal German Pils",par:"2 kegs",category:"Beer/Wine",onHand:null},
-  {id:"b15",name:"Guinness",par:"2 kegs",category:"Beer/Wine",onHand:null},
-  {id:"b16",name:"805",par:"2 kegs",category:"Beer/Wine",onHand:null},
-  // BOTTLES
-  {id:"b17",name:"Coors Light Bottles",par:"8 cases",category:"Beer/Wine",onHand:null},
-  {id:"b18",name:"Corona Bottle",par:"8 cases",category:"Beer/Wine",onHand:null},
-  {id:"b19",name:"Coors Banquet Bottles",par:"4 cases",category:"Beer/Wine",onHand:null},
+  // SPIRITS - VODKA
+  {id:"s1",name:"Well Vodka (Free Will)",par:"1 case",category:"Spirits",vendor:"—",onHand:null},
+  {id:"s2",name:"Grey Goose",par:"6 bottles",category:"Spirits",vendor:"Southern",onHand:null},
+  {id:"s3",name:"Pinnacle Citrus",par:"1 case",category:"Spirits",vendor:"Southern",onHand:null},
+  {id:"s4",name:"Kettle One",par:"1 case",category:"Spirits",vendor:"Southern",onHand:null},
+  {id:"s5",name:"Beefeater",par:"1 case",category:"Spirits",vendor:"Southern",onHand:null},
+  {id:"s6",name:"Bombay Sapphire",par:"3 bottles",category:"Spirits",vendor:"Southern",onHand:null},
+  {id:"s7",name:"Hendrick's",par:"3 bottles",category:"Spirits",vendor:"Gate City",onHand:null},
+  {id:"s8",name:"Captain Morgan",par:"3 bottles",category:"Spirits",vendor:"Southern",onHand:null},
+  {id:"s9",name:"Bacardi",par:"6 bottles",category:"Spirits",vendor:"Southern",onHand:null},
+  {id:"s10",name:"Meyer's",par:"2 bottles",category:"Spirits",vendor:"Gate City",onHand:null},
+  {id:"s11",name:"Sauza Reposado",par:"2 cases",category:"Spirits",vendor:"Southern",onHand:null},
+  {id:"s12",name:"Sauza Blanco",par:"1 case",category:"Spirits",vendor:"Southern",onHand:null},
+  {id:"s13",name:"El Tosoro Reposado",par:"6 bottles",category:"Spirits",vendor:"Southern",onHand:null},
+  {id:"s14",name:"El Tosoro Blanco",par:"6 bottles",category:"Spirits",vendor:"Southern",onHand:null},
+  {id:"s15",name:"Patron Silver",par:"6 bottles",category:"Spirits",vendor:"Southern",onHand:null},
+  {id:"s16",name:"Patron Anejo",par:"3 bottles",category:"Spirits",vendor:"Southern",onHand:null},
+  {id:"s17",name:"Patron Reposado",par:"6 bottles",category:"Spirits",vendor:"Southern",onHand:null},
+  {id:"s18",name:"De La Familia Anejo",par:"2 bottles",category:"Spirits",vendor:"—",onHand:null},
+  {id:"s19",name:"De La Familia Repo",par:"2 bottles",category:"Spirits",vendor:"—",onHand:null},
+  {id:"s20",name:"De La Familia Platino",par:"2 bottles",category:"Spirits",vendor:"—",onHand:null},
+  {id:"s21",name:"Don Julio Blanco",par:"6 bottles",category:"Spirits",vendor:"Southern",onHand:null},
+  {id:"s22",name:"Don Julio 70",par:"3 bottles",category:"Spirits",vendor:"Southern",onHand:null},
+  {id:"s23",name:"Don Julio 1942",par:"2 bottles",category:"Spirits",vendor:"Southern",onHand:null},
+  {id:"s24",name:"Herradura Ultra",par:"3 bottles",category:"Spirits",vendor:"Gate City",onHand:null},
+  {id:"s25",name:"Herradura Silver",par:"6 bottles",category:"Spirits",vendor:"Gate City",onHand:null},
+  {id:"s26",name:"Laelia Reposado",par:"6 bottles",category:"Spirits",vendor:"—",onHand:null},
+  {id:"s27",name:"Laelia Blanco",par:"6 bottles",category:"Spirits",vendor:"—",onHand:null},
+  {id:"s28",name:"u4rik Anejo",par:"2 cases",category:"Spirits",vendor:"—",onHand:null},
+  {id:"s29",name:"Mijenta Repo",par:"3 bottles",category:"Spirits",vendor:"Gate City",onHand:null},
+  {id:"s30",name:"Del Maguey Mezcal",par:"1 case",category:"Spirits",vendor:"Southern",onHand:null},
+  {id:"s31",name:"Bulleit Rye Whiskey",par:"6 bottles",category:"Spirits",vendor:"Southern",onHand:null},
+  {id:"s32",name:"Maker's Mark",par:"1 case",category:"Spirits",vendor:"Southern",onHand:null},
+  {id:"s33",name:"Jack Daniel's",par:"1 case",category:"Spirits",vendor:"Gate City",onHand:null},
+  {id:"s34",name:"Old Forester",par:"1 case",category:"Spirits",vendor:"Gate City",onHand:null},
+  {id:"s35",name:"Buffalo Trace",par:"1 case",category:"Spirits",vendor:"Gate City",onHand:null},
+  {id:"s36",name:"Jameson",par:"2 cases",category:"Spirits",vendor:"Southern",onHand:null},
+  {id:"s37",name:"Knob Creek",par:"2 bottles",category:"Spirits",vendor:"Southern",onHand:null},
+  {id:"s38",name:"Crown Royal",par:"3 bottles",category:"Spirits",vendor:"Southern",onHand:null},
+  {id:"s39",name:"Glenlivet",par:"2 bottles",category:"Spirits",vendor:"Southern",onHand:null},
+  {id:"s40",name:"Macallan 12",par:"2 bottles",category:"Spirits",vendor:"Southern",onHand:null},
+  {id:"s41",name:"Glenfiddich",par:"2 bottles",category:"Spirits",vendor:"Southern",onHand:null},
+  {id:"s42",name:"Gran Marnier",par:"4 bottles",category:"Spirits",vendor:"Southern",onHand:null},
+  {id:"s43",name:"Cointreau",par:"4 bottles",category:"Spirits",vendor:"Southern",onHand:null},
+  {id:"s44",name:"Triple Sec",par:"1 case",category:"Spirits",vendor:"Southern",onHand:null},
+  {id:"s45",name:"Italicus",par:"2 bottles",category:"Spirits",vendor:"Southern",onHand:null},
+  {id:"s46",name:"Aperol",par:"1 case",category:"Spirits",vendor:"Southern",onHand:null},
+  {id:"s47",name:"Campari",par:"3 bottles",category:"Spirits",vendor:"Southern",onHand:null},
+  {id:"s48",name:"Chambord",par:"2 bottles",category:"Spirits",vendor:"Southern",onHand:null},
+  {id:"s49",name:"Cherry Heering",par:"2 bottles",category:"Spirits",vendor:"Southern",onHand:null},
+  {id:"s50",name:"Luxardo Amaretto",par:"1 case",category:"Spirits",vendor:"Southern",onHand:null},
+  {id:"s51",name:"Peach Schnapps",par:"1 case",category:"Spirits",vendor:"Southern",onHand:null},
+  {id:"s52",name:"Blue Curacao",par:"3 bottles",category:"Spirits",vendor:"Southern",onHand:null},
+  {id:"s53",name:"Apple Pucker",par:"3 bottles",category:"Spirits",vendor:"Southern",onHand:null},
+  {id:"s54",name:"Watermelon Pucker",par:"3 bottles",category:"Spirits",vendor:"Southern",onHand:null},
+  {id:"s55",name:"Mr Black Coffee Liqueur",par:"6 bottles",category:"Spirits",vendor:"Southern",onHand:null},
+  {id:"s56",name:"Vermouth (Dry)",par:"3 bottles",category:"Spirits",vendor:"Southern",onHand:null},
+  {id:"s57",name:"Vermouth (Sweet)",par:"3 bottles",category:"Spirits",vendor:"Southern",onHand:null},
+  // BEER - KEGS
+  {id:"b1",name:"Mistress Blonde",par:"5 kegs",category:"Beer/Wine",vendor:"—",onHand:null},
+  {id:"b2",name:"El Hendo",par:"5 kegs",category:"Beer/Wine",vendor:"—",onHand:null},
+  {id:"b3",name:"West Coast IPA",par:"5 kegs",category:"Beer/Wine",vendor:"—",onHand:null},
+  {id:"b4",name:"Pale Ale",par:"3 kegs",category:"Beer/Wine",vendor:"—",onHand:null},
+  {id:"b5",name:"Hazy Ex",par:"5 kegs",category:"Beer/Wine",vendor:"—",onHand:null},
+  {id:"b6",name:"Prolific West Coast Pilsner",par:"2 kegs",category:"Beer/Wine",vendor:"—",onHand:null},
+  {id:"b7",name:"Modelo",par:"3 kegs",category:"Beer/Wine",vendor:"Gate City",onHand:null},
+  {id:"b8",name:"394 Pale Ale",par:"2 kegs",category:"Beer/Wine",vendor:"Gate City",onHand:null},
+  {id:"b9",name:"Cali Squeeze",par:"2 kegs",category:"Beer/Wine",vendor:"Gate City",onHand:null},
+  {id:"b10",name:"Mason Red Ale",par:"2 kegs",category:"Beer/Wine",vendor:"—",onHand:null},
+  {id:"b11",name:"Mason Double Hazy",par:"2 kegs",category:"Beer/Wine",vendor:"—",onHand:null},
+  {id:"b12",name:"Angry Orchard",par:"1 keg",category:"Beer/Wine",vendor:"Gate City",onHand:null},
+  {id:"b13",name:"Sam Seasonal",par:"1 keg",category:"Beer/Wine",vendor:"Gate City",onHand:null},
+  {id:"b14",name:"Guinness",par:"2 kegs",category:"Beer/Wine",vendor:"Gate City",onHand:null},
+  {id:"b15",name:"805",par:"2 kegs",category:"Beer/Wine",vendor:"Gate City",onHand:null},
+  {id:"b16",name:"805 1/6 Barrel",par:"2 kegs",category:"Beer/Wine",vendor:"Gate City",onHand:null},
+  {id:"b17",name:"Mason Pale Ale",par:"1",category:"Beer/Wine",vendor:"—",onHand:null},
+  {id:"b18",name:"Prolific Lager",par:"1",category:"Beer/Wine",vendor:"—",onHand:null},
+  {id:"b19",name:"Prolific Golden Poppy",par:"1",category:"Beer/Wine",vendor:"—",onHand:null},
+  {id:"b20",name:"Coors Light Bottles",par:"8 cases",category:"Beer/Wine",vendor:"Gate City",onHand:null},
+  {id:"b21",name:"Corona Bottle",par:"8 cases",category:"Beer/Wine",vendor:"Gate City",onHand:null},
+  {id:"b22",name:"Coors Banquet Bottles",par:"4 cases",category:"Beer/Wine",vendor:"Gate City",onHand:null},
+  {id:"b23",name:"Surfside Cans",par:"2 cases",category:"Beer/Wine",vendor:"Gate City",onHand:null},
+  {id:"b24",name:"High Noon Iced Tea",par:"2 cases",category:"Beer/Wine",vendor:"Gate City",onHand:null},
+  {id:"b25",name:"High Noon Cherry",par:"2 cases",category:"Beer/Wine",vendor:"—",onHand:null},
+  {id:"b26",name:"High Noon Watermelon",par:"2 cases",category:"Beer/Wine",vendor:"—",onHand:null},
+  {id:"b27",name:"Athletic NA IPA",par:"0.5 cases",category:"Beer/Wine",vendor:"—",onHand:null},
+  {id:"b28",name:"Athletic NA Mexican Lager",par:"0.5 cases",category:"Beer/Wine",vendor:"—",onHand:null},
   // WINE
-  {id:"w1",name:"Pasmosa White Sangria",par:"3 cases",category:"Beer/Wine",onHand:null},
-  {id:"w2",name:"Pasmosa Red Sangria",par:"3 cases",category:"Beer/Wine",onHand:null},
-  {id:"w3",name:"Bisol Jeio Prosecco Splits",par:"4 cases",category:"Beer/Wine",onHand:null},
-  {id:"w4",name:"Langlois Brut Rose",par:"1 case",category:"Beer/Wine",onHand:null},
-  {id:"w5",name:"Schramsberg Brut",par:"1 case",category:"Beer/Wine",onHand:null},
-  {id:"w6",name:"Tattinger Brut",par:"1 case",category:"Beer/Wine",onHand:null},
-  {id:"w7",name:"Shannon Ridge Chardonnay",par:"1 case",category:"Beer/Wine",onHand:null},
-  {id:"w8",name:"Etude Pinot Gris",par:"2 cases",category:"Beer/Wine",onHand:null},
-  {id:"w9",name:"Schloss Riesling",par:"1 case",category:"Beer/Wine",onHand:null},
-  {id:"w10",name:"Craggy Range Sauv Blanc",par:"2 cases",category:"Beer/Wine",onHand:null},
-  {id:"w11",name:"Stags Leap Chard",par:"1 case",category:"Beer/Wine",onHand:null},
-  {id:"w12",name:"Austin Chard",par:"2 cases",category:"Beer/Wine",onHand:null},
-  {id:"w13",name:"Shooting Star Pinot Noir",par:"1 case",category:"Beer/Wine",onHand:null},
-  {id:"w14",name:"Black Stallion Pinot Noir",par:"1 case",category:"Beer/Wine",onHand:null},
-  {id:"w15",name:"Markham Six Stack Merlot",par:"1 case",category:"Beer/Wine",onHand:null},
-  {id:"w16",name:"Pessimist Red Blend",par:"2 cases",category:"Beer/Wine",onHand:null},
-  {id:"w17",name:"Daou Discovery Cabernet",par:"2 cases",category:"Beer/Wine",onHand:null},
-  {id:"w18",name:"Hess Lion Tamer Cabernet",par:"1 case",category:"Beer/Wine",onHand:null},
-  {id:"w19",name:"Peltzer Syrah Rose",par:"1 case",category:"Beer/Wine",onHand:null},
-  {id:"w20",name:"Peltzer Feeling Cocky",par:"1 case",category:"Beer/Wine",onHand:null},
-  {id:"w21",name:"Doffo Cabernet",par:"1 case",category:"Beer/Wine",onHand:null},
-  {id:"w22",name:"Doffo Vermentino",par:"1 case",category:"Beer/Wine",onHand:null},
-  // MIXERS/GARNISHES
-  {id:"m1",name:"Bloody Mary Mix",par:"1 case",category:"Mixers/Garnishes",onHand:null},
-  {id:"m2",name:"Angostura Bitters",par:"1 case",category:"Mixers/Garnishes",onHand:null},
-  {id:"m3",name:"Orange Bitters",par:"1 case",category:"Mixers/Garnishes",onHand:null},
-  {id:"m4",name:"Grenadine",par:"1 case",category:"Mixers/Garnishes",onHand:null},
-  {id:"m5",name:"Strawberry Syrup",par:"1 case",category:"Mixers/Garnishes",onHand:null},
-  {id:"m6",name:"Falernum Syrup",par:"1 case",category:"Mixers/Garnishes",onHand:null},
-  {id:"m7",name:"Prickly Pear Syrup",par:"1 case",category:"Mixers/Garnishes",onHand:null},
-  {id:"m8",name:"Simple Syrup",par:"1 case",category:"Mixers/Garnishes",onHand:null},
-  {id:"m9",name:"Agave Nectar",par:"1 case",category:"Mixers/Garnishes",onHand:null},
-  {id:"m10",name:"Sprite",par:"2 bibs",category:"Mixers/Garnishes",onHand:null},
-  {id:"m11",name:"Coke",par:"2 bibs",category:"Mixers/Garnishes",onHand:null},
-  {id:"m12",name:"Diet Coke",par:"1 bib",category:"Mixers/Garnishes",onHand:null},
-  {id:"m13",name:"Coke Zero",par:"1 bib",category:"Mixers/Garnishes",onHand:null},
-  {id:"m14",name:"Rasp Tea",par:"1 bib",category:"Mixers/Garnishes",onHand:null},
-  {id:"m15",name:"Lemonade",par:"1 bib",category:"Mixers/Garnishes",onHand:null},
-  {id:"m16",name:"Cranberry",par:"2 bibs",category:"Mixers/Garnishes",onHand:null},
-  {id:"m17",name:"Tonic",par:"1 bib",category:"Mixers/Garnishes",onHand:null},
-  {id:"m18",name:"Dr. Pepper",par:"1 bib",category:"Mixers/Garnishes",onHand:null},
-  {id:"m19",name:"Ginger Beer",par:"1 case",category:"Mixers/Garnishes",onHand:null},
-  {id:"m20",name:"Espresso Mix",par:"1 case",category:"Mixers/Garnishes",onHand:null},
-  {id:"m21",name:"Oranges",par:"1 case",category:"Mixers/Garnishes",onHand:null},
-  {id:"m22",name:"Limes",par:"1 case",category:"Mixers/Garnishes",onHand:null},
-  {id:"m23",name:"Lemons",par:"1 case",category:"Mixers/Garnishes",onHand:null},
-  {id:"m24",name:"Blackberries",par:"6 flats",category:"Mixers/Garnishes",onHand:null},
-  {id:"m25",name:"Cucumbers",par:"12",category:"Mixers/Garnishes",onHand:null},
-  {id:"m26",name:"Strawberries",par:"6 flats",category:"Mixers/Garnishes",onHand:null},
-  {id:"m27",name:"Mint",par:"2 boxes",category:"Mixers/Garnishes",onHand:null},
-  {id:"m28",name:"Dried Fruit",par:"2 boxes each",category:"Mixers/Garnishes",onHand:null},
-  {id:"m29",name:"Tajin",par:"1 case",category:"Mixers/Garnishes",onHand:null},
-  {id:"m30",name:"Cherries",par:"1 case each",category:"Mixers/Garnishes",onHand:null},
+  {id:"w1",name:"Freixenet Cava Splits",par:"4 cases",category:"Beer/Wine",vendor:"Southern",onHand:null},
+  {id:"w2",name:"Gambino Sparkling",par:"3 cases",category:"Beer/Wine",vendor:"Southern",onHand:null},
+  {id:"w3",name:"Moet Chandon",par:"0.5 cases",category:"Beer/Wine",vendor:"Southern",onHand:null},
+  {id:"w4",name:"Vueve Clicquot",par:"0.5 cases",category:"Beer/Wine",vendor:"Southern",onHand:null},
+  {id:"w5",name:"Sycamore Lane Chardonnay",par:"1 case",category:"Beer/Wine",vendor:"Southern",onHand:null},
+  {id:"w6",name:"Chalk Hill Chardonnay",par:"1 case",category:"Beer/Wine",vendor:"Southern",onHand:null},
+  {id:"w7",name:"Ferrari Pinot Grigio",par:"1 case",category:"Beer/Wine",vendor:"Southern",onHand:null},
+  {id:"w8",name:"Seaglass Riesling",par:"1 case",category:"Beer/Wine",vendor:"Southern",onHand:null},
+  {id:"w9",name:"Kim Crawford Sauvignon Blanc",par:"1.5 cases",category:"Beer/Wine",vendor:"Southern",onHand:null},
+  {id:"w10",name:"Conundrum White",par:"1 case",category:"Beer/Wine",vendor:"Southern",onHand:null},
+  {id:"w11",name:"Peltzer Chardonnay",par:"1 case",category:"Beer/Wine",vendor:"—",onHand:null},
+  {id:"w12",name:"Peltzer Syrah Rose",par:"1 case",category:"Beer/Wine",vendor:"—",onHand:null},
+  {id:"w13",name:"Peltzer Feeling Cocky",par:"1 case",category:"Beer/Wine",vendor:"—",onHand:null},
+  {id:"w14",name:"Peltzer White Sangria",par:"1 keg",category:"Beer/Wine",vendor:"—",onHand:null},
+  {id:"w15",name:"Peltzer Red Sangria",par:"1 keg",category:"Beer/Wine",vendor:"—",onHand:null},
+  {id:"w16",name:"Seaglass Pinot Noir",par:"1.5 cases",category:"Beer/Wine",vendor:"Southern",onHand:null},
+  {id:"w17",name:"Conundrum Red Blend",par:"1 case",category:"Beer/Wine",vendor:"Southern",onHand:null},
+  {id:"w18",name:"Justin Cabernet Sauvignon",par:"1 case",category:"Beer/Wine",vendor:"Southern",onHand:null},
+  {id:"w19",name:"Sycamore Lane Cabernet",par:"1 case",category:"Beer/Wine",vendor:"Southern",onHand:null},
+  {id:"w20",name:"Caymus California",par:"1 case",category:"Beer/Wine",vendor:"Southern",onHand:null},
+  {id:"w21",name:"Doffo Cabernet",par:"1 case",category:"Beer/Wine",vendor:"—",onHand:null},
+  {id:"w22",name:"Doffo Vermentino",par:"1 case",category:"Beer/Wine",vendor:"—",onHand:null},
+  {id:"w23",name:"Chateau Ste Michelle Merlot",par:"1 case",category:"Beer/Wine",vendor:"Southern",onHand:null},
+  // MIXERS & GARNISHES
+  {id:"m1",name:"Bloody Mary Mix",par:"1 case",category:"Mixers/Garnishes",vendor:"Southern",onHand:null},
+  {id:"m2",name:"Angostura Bitters",par:"1 case",category:"Mixers/Garnishes",vendor:"Southern",onHand:null},
+  {id:"m3",name:"Orange Bitters",par:"1 case",category:"Mixers/Garnishes",vendor:"Southern",onHand:null},
+  {id:"m4",name:"Grenadine",par:"1 case",category:"Mixers/Garnishes",vendor:"Southern",onHand:null},
+  {id:"m5",name:"Coconut Syrup",par:"1 case",category:"Mixers/Garnishes",vendor:"Southern",onHand:null},
+  {id:"m6",name:"Falernum Syrup",par:"1 case",category:"Mixers/Garnishes",vendor:"Southern",onHand:null},
+  {id:"m7",name:"Prickly Pear Syrup",par:"1 case",category:"Mixers/Garnishes",vendor:"Southern",onHand:null},
+  {id:"m8",name:"Simple Syrup",par:"3 gal",category:"Mixers/Garnishes",vendor:"Chef Orders",onHand:null},
+  {id:"m9",name:"Agave Syrup",par:"2 gal",category:"Mixers/Garnishes",vendor:"Chef Orders",onHand:null},
+  {id:"m10",name:"Maple Syrup",par:"1 gal",category:"Mixers/Garnishes",vendor:"Chef Orders",onHand:null},
+  {id:"m11",name:"Fever Tree Espresso",par:"2 cases",category:"Mixers/Garnishes",vendor:"Gate City",onHand:null},
+  {id:"m12",name:"Ginger Beer",par:"2 cases",category:"Mixers/Garnishes",vendor:"Gate City",onHand:null},
+  {id:"m13",name:"Sprite",par:"2 bibs",category:"Mixers/Garnishes",vendor:"Chef Orders",onHand:null},
+  {id:"m14",name:"Coke",par:"2 bibs",category:"Mixers/Garnishes",vendor:"Chef Orders",onHand:null},
+  {id:"m15",name:"Diet Coke",par:"1 bib",category:"Mixers/Garnishes",vendor:"Chef Orders",onHand:null},
+  {id:"m16",name:"Coke Zero",par:"1 bib",category:"Mixers/Garnishes",vendor:"Chef Orders",onHand:null},
+  {id:"m17",name:"Rasp Tea",par:"1 bib",category:"Mixers/Garnishes",vendor:"Chef Orders",onHand:null},
+  {id:"m18",name:"Lemonade",par:"1 bib",category:"Mixers/Garnishes",vendor:"Chef Orders",onHand:null},
+  {id:"m19",name:"Cranberry",par:"2 bibs",category:"Mixers/Garnishes",vendor:"Chef Orders",onHand:null},
+  {id:"m20",name:"Tonic",par:"1 bib",category:"Mixers/Garnishes",vendor:"Chef Orders",onHand:null},
+  {id:"m21",name:"Dr. Pepper",par:"1 bib",category:"Mixers/Garnishes",vendor:"Chef Orders",onHand:null},
+  {id:"m22",name:"Coffee",par:"2 regular",category:"Mixers/Garnishes",vendor:"Chef Orders",onHand:null},
+  {id:"m23",name:"Espresso Mix",par:"1 case",category:"Mixers/Garnishes",vendor:"Chef Orders",onHand:null},
+  {id:"m24",name:"Pineapple Juice",par:"2 cases",category:"Mixers/Garnishes",vendor:"Chef Orders",onHand:null},
+  {id:"m25",name:"Orange Juice",par:"1 case",category:"Mixers/Garnishes",vendor:"Chef Orders",onHand:null},
+  {id:"m26",name:"Lime Juice",par:"1 case",category:"Mixers/Garnishes",vendor:"Chef Orders",onHand:null},
+  {id:"m27",name:"Lemon Juice",par:"1 case",category:"Mixers/Garnishes",vendor:"Chef Orders",onHand:null},
+  {id:"m28",name:"Apple Juice Boxes",par:"1 case",category:"Mixers/Garnishes",vendor:"Chef Orders",onHand:null},
+  {id:"m29",name:"Oranges",par:"1 case",category:"Mixers/Garnishes",vendor:"Chef Orders",onHand:null},
+  {id:"m30",name:"Limes",par:"1 case",category:"Mixers/Garnishes",vendor:"Chef Orders",onHand:null},
+  {id:"m31",name:"Lemons",par:"1 case",category:"Mixers/Garnishes",vendor:"Chef Orders",onHand:null},
+  {id:"m32",name:"Blackberries",par:"6 flats",category:"Mixers/Garnishes",vendor:"Chef Orders",onHand:null},
+  {id:"m33",name:"Cucumbers",par:"12",category:"Mixers/Garnishes",vendor:"Chef Orders",onHand:null},
+  {id:"m34",name:"Strawberries",par:"6 flats",category:"Mixers/Garnishes",vendor:"Chef Orders",onHand:null},
+  {id:"m35",name:"Mint",par:"2 boxes",category:"Mixers/Garnishes",vendor:"Chef Orders",onHand:null},
+  {id:"m36",name:"Dried Fruit",par:"2 boxes each",category:"Mixers/Garnishes",vendor:"Chef Orders",onHand:null},
+  {id:"m37",name:"Tajin",par:"1 case",category:"Mixers/Garnishes",vendor:"Chef Orders",onHand:null},
+  {id:"m38",name:"Cherries (Maraschino)",par:"1 case",category:"Mixers/Garnishes",vendor:"Chef Orders",onHand:null},
+  {id:"m39",name:"Cherries (Luxardo)",par:"1 case",category:"Mixers/Garnishes",vendor:"Chef Orders",onHand:null},
   // PAPER GOODS
-  {id:"p1",name:"Large To-Go Containers",par:"3 cases",category:"Paper Goods",onHand:null},
-  {id:"p2",name:"Small To-Go Containers",par:"2 cases",category:"Paper Goods",onHand:null},
-  {id:"p3",name:"Plastic Cups",par:"1 case",category:"Paper Goods",onHand:null},
-  {id:"p4",name:"Plastic Ramekins",par:"1 case",category:"Paper Goods",onHand:null},
-  {id:"p5",name:"To-Go Bags",par:"1 case",category:"Paper Goods",onHand:null},
-  {id:"p6",name:"Bev Napkins",par:"3 cases",category:"Paper Goods",onHand:null},
-  {id:"p7",name:"Straws",par:"1 case",category:"Paper Goods",onHand:null},
-  {id:"p8",name:"Cocktail Straws",par:"1 case",category:"Paper Goods",onHand:null},
-  {id:"p9",name:"Fruit Picks",par:"1 case",category:"Paper Goods",onHand:null},
+  {id:"p1",name:"Large To-Go Containers",par:"5 cases",category:"Paper Goods",vendor:"Chef Orders",onHand:null},
+  {id:"p2",name:"Small To-Go Containers",par:"3 cases",category:"Paper Goods",vendor:"Chef Orders",onHand:null},
+  {id:"p3",name:"Plastic Cups",par:"1 case",category:"Paper Goods",vendor:"Chef Orders",onHand:null},
+  {id:"p4",name:"Plastic Ramekins",par:"1 case",category:"Paper Goods",vendor:"Chef Orders",onHand:null},
+  {id:"p5",name:"To-Go Bags",par:"2 cases",category:"Paper Goods",vendor:"Chef Orders",onHand:null},
+  {id:"p6",name:"Bev Napkins",par:"3 cases",category:"Paper Goods",vendor:"Chef Orders",onHand:null},
+  {id:"p7",name:"Straws",par:"1 case",category:"Paper Goods",vendor:"Chef Orders",onHand:null},
+  {id:"p8",name:"Cocktail Straws",par:"1 case",category:"Paper Goods",vendor:"Chef Orders",onHand:null},
+  {id:"p9",name:"Fruit Picks",par:"1 case",category:"Paper Goods",vendor:"Chef Orders",onHand:null},
   // FOH SUPPLIES
-  {id:"f1",name:"Dinner Plates",par:"600",category:"FOH Supplies",onHand:null},
-  {id:"f2",name:"Salad Plates",par:"600",category:"FOH Supplies",onHand:null},
-  {id:"f3",name:"Bowls",par:"400",category:"FOH Supplies",onHand:null},
-  {id:"f4",name:"Forks",par:"—",category:"FOH Supplies",onHand:null},
-  {id:"f5",name:"Spoons",par:"—",category:"FOH Supplies",onHand:null},
-  {id:"f6",name:"Knives",par:"—",category:"FOH Supplies",onHand:null},
-  {id:"f7",name:"Steak Knives",par:"—",category:"FOH Supplies",onHand:null},
-  {id:"f8",name:"Water Glasses",par:"1000",category:"FOH Supplies",onHand:null},
-  {id:"f9",name:"Wine Glasses",par:"300",category:"FOH Supplies",onHand:null},
-  {id:"f10",name:"Rocks Glasses",par:"400",category:"FOH Supplies",onHand:null},
-  {id:"f11",name:"Hi Ball Glasses",par:"400",category:"FOH Supplies",onHand:null},
-  {id:"f12",name:"Beer Glasses",par:"1000",category:"FOH Supplies",onHand:null},
-  {id:"f13",name:"Napkins",par:"1000",category:"FOH Supplies",onHand:null},
-  {id:"f14",name:"Beverage Napkins",par:"1000",category:"FOH Supplies",onHand:null},
-  {id:"f15",name:"Server Trays",par:"20",category:"FOH Supplies",onHand:null},
-  {id:"f16",name:"Cocktail Shakers",par:"10",category:"FOH Supplies",onHand:null},
-  {id:"f17",name:"Jiggers",par:"10",category:"FOH Supplies",onHand:null},
-  {id:"f18",name:"Bar Spoons",par:"10",category:"FOH Supplies",onHand:null},
-  {id:"f19",name:"Muddler",par:"5",category:"FOH Supplies",onHand:null},
-  {id:"f20",name:"Strainers",par:"10",category:"FOH Supplies",onHand:null},
-  {id:"f21",name:"Ice Bucket",par:"5",category:"FOH Supplies",onHand:null},
-  {id:"f22",name:"First Aid Kit",par:"3",category:"FOH Supplies",onHand:null},
-  {id:"f23",name:"Wine Keys",par:"vendor",category:"FOH Supplies",onHand:null},
-  {id:"f24",name:"Bottle Openers",par:"vendor",category:"FOH Supplies",onHand:null},
+  {id:"f1",name:"Dinner Plates",par:"600",category:"FOH Supplies",vendor:"—",onHand:null},
+  {id:"f2",name:"Salad Plates",par:"600",category:"FOH Supplies",vendor:"—",onHand:null},
+  {id:"f3",name:"Bowls",par:"400",category:"FOH Supplies",vendor:"—",onHand:null},
+  {id:"f4",name:"Forks",par:"—",category:"FOH Supplies",vendor:"—",onHand:null},
+  {id:"f5",name:"Spoons",par:"—",category:"FOH Supplies",vendor:"—",onHand:null},
+  {id:"f6",name:"Knives",par:"—",category:"FOH Supplies",vendor:"—",onHand:null},
+  {id:"f7",name:"Steak Knives",par:"—",category:"FOH Supplies",vendor:"—",onHand:null},
+  {id:"f8",name:"Water Glasses",par:"1000",category:"FOH Supplies",vendor:"—",onHand:null},
+  {id:"f9",name:"Wine Glasses",par:"300",category:"FOH Supplies",vendor:"—",onHand:null},
+  {id:"f10",name:"Rocks Glasses",par:"400",category:"FOH Supplies",vendor:"—",onHand:null},
+  {id:"f11",name:"Hi Ball Glasses",par:"400",category:"FOH Supplies",vendor:"—",onHand:null},
+  {id:"f12",name:"Beer Glasses",par:"1000",category:"FOH Supplies",vendor:"—",onHand:null},
+  {id:"f13",name:"Napkins",par:"1000",category:"FOH Supplies",vendor:"—",onHand:null},
+  {id:"f14",name:"Beverage Napkins",par:"1000",category:"FOH Supplies",vendor:"—",onHand:null},
+  {id:"f15",name:"Server Trays",par:"20",category:"FOH Supplies",vendor:"—",onHand:null},
+  {id:"f16",name:"Cocktail Shakers",par:"10",category:"FOH Supplies",vendor:"—",onHand:null},
+  {id:"f17",name:"Jiggers",par:"10",category:"FOH Supplies",vendor:"—",onHand:null},
+  {id:"f18",name:"Bar Spoons",par:"10",category:"FOH Supplies",vendor:"—",onHand:null},
+  {id:"f19",name:"Muddler",par:"5",category:"FOH Supplies",vendor:"—",onHand:null},
+  {id:"f20",name:"Strainers",par:"10",category:"FOH Supplies",vendor:"—",onHand:null},
+  {id:"f21",name:"Ice Bucket",par:"5",category:"FOH Supplies",vendor:"—",onHand:null},
+  {id:"f22",name:"First Aid Kit",par:"3",category:"FOH Supplies",vendor:"—",onHand:null},
+  {id:"f23",name:"Wine Keys",par:"vendor",category:"FOH Supplies",vendor:"—",onHand:null},
+  {id:"f24",name:"Bottle Openers",par:"vendor",category:"FOH Supplies",vendor:"—",onHand:null},
 ];
+// ============================================================
+// SUPABASE CONFIG
+// ============================================================
+const SUPABASE_URL = 'https://codzcyqavknpddhumtgx.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNvZHpjeXFhdmtucGRkaHVtdGd4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMzNDM2MzMsImV4cCI6MjA4ODkxOTYzM30.VUO1KiRpsdINRQCbAtvSRPmuKR2dAqbhkJqSPlAqB_8';
 
-const CATEGORY_ORDER = ["Spirits","Beer/Wine","Mixers/Garnishes","Paper Goods","FOH Supplies"];
-const STORAGE_KEY = "hendos_v5";
+async function sbFetch(path, options = {}, retries = 3) {
+  for (let attempt = 0; attempt < retries; attempt++) {
+    try {
+      const res = await fetch(SUPABASE_URL + path, {
+        ...options,
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': 'Bearer ' + SUPABASE_KEY,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=representation',
+          ...(options.headers || {})
+        }
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const text = await res.text();
+      return text ? JSON.parse(text) : [];
+    } catch(e) {
+      if (attempt === retries - 1) throw e;
+      await new Promise(r => setTimeout(r, 1000 * (attempt + 1))); // 1s, 2s backoff
+    }
+  }
+}
 
 // ============================================================
 // STATE
@@ -535,37 +629,120 @@ const STORAGE_KEY = "hendos_v5";
 let items = [];
 let activeFilters = { low: false, out: false };
 let activeCategory = 'all';
-let toastData = null; // parsed CSV data
+let activeVendor = 'all';
+let toastData = null;
+let currentUser = localStorage.getItem('hendos_username') || null;
 
-function loadState() {
+function getUsername() {
+  if (currentUser) return currentUser;
+  let name = prompt('Enter your name so others can see who counted what:');
+  if (!name || !name.trim()) name = 'Unknown';
+  currentUser = name.trim();
+  localStorage.setItem('hendos_username', currentUser);
+  return currentUser;
+}
+
+async function loadState() {
+  // Start with default items
+  items = DEFAULT_ITEMS.map(d => ({ ...d }));
+  showSyncStatus('loading');
   try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      items = DEFAULT_ITEMS.map(def => {
-        const s = parsed.find(p => p.id === def.id);
-        return s ? { ...def, onHand: s.onHand } : { ...def };
-      });
-    } else {
-      items = DEFAULT_ITEMS.map(d => ({ ...d }));
-    }
+    const rows = await sbFetch('/rest/v1/inventory_counts?select=*');
+    rows.forEach(row => {
+      const item = items.find(i => i.id === row.id);
+      if (item) {
+        item.onHand = row.on_hand;
+        item.updatedBy = row.updated_by;
+        item.updatedAt = row.updated_at;
+      }
+    });
+    showSyncStatus('synced');
   } catch(e) {
-    items = DEFAULT_ITEMS.map(d => ({ ...d }));
+    console.error('Load failed, using local fallback:', e);
+    // Fall back to localStorage
+    try {
+      const saved = localStorage.getItem('hendos_local');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        items = DEFAULT_ITEMS.map(def => {
+          const s = parsed.find(p => p.id === def.id);
+          return s ? { ...def, onHand: s.onHand } : { ...def };
+        });
+      }
+    } catch(e2) {}
+    showSyncStatus('offline');
+  }
+  updateStats();
+  renderInventory();
+}
+
+async function saveItem(id, val, updatedBy) {
+  // Save to localStorage as backup
+  localStorage.setItem('hendos_local', JSON.stringify(items.map(i => ({ id: i.id, onHand: i.onHand }))));
+  showSyncStatus('saving');
+  try {
+    await sbFetch('/rest/v1/inventory_counts', {
+      method: 'POST',
+      headers: { 'Prefer': 'resolution=merge-duplicates,return=representation' },
+      body: JSON.stringify({ id, on_hand: val, updated_by: updatedBy, updated_at: new Date().toISOString() })
+    });
+    showSyncStatus('synced');
+  } catch(e) {
+    console.error('Save failed:', e);
+    showSyncStatus('offline');
   }
 }
 
-function saveState() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(items.map(i => ({ id: i.id, onHand: i.onHand }))));
+function showSyncStatus(state) {
+  const el = document.getElementById('syncStatus');
+  if (!el) return;
+  const map = {
+    loading: { text: '⟳ Loading...', color: 'var(--text-muted)' },
+    saving:  { text: '⟳ Saving...', color: 'var(--amber)' },
+    synced:  { text: '✓ Synced', color: 'var(--green)' },
+    offline: { text: '⚠ Offline', color: 'var(--red)' }
+  };
+  const s = map[state] || map.synced;
+  el.textContent = s.text;
+  el.style.color = s.color;
 }
 
-function updateItem(id, val) {
+async function updateItem(id, val, inputEl) {
+  const username = getUsername();
   const item = items.find(i => i.id === id);
   if (item) {
     item.onHand = val === '' ? null : val;
-    saveState();
+    item.updatedBy = username;
+    item.updatedAt = new Date().toISOString();
     updateStats();
+    await saveItem(id, val === '' ? null : val, username);
   }
 }
+
+// Poll for updates from other users every 15 seconds
+async function pollUpdates() {
+  try {
+    const rows = await sbFetch('/rest/v1/inventory_counts?select=*');
+    let changed = false;
+    rows.forEach(row => {
+      const item = items.find(i => i.id === row.id);
+      if (item && item.onHand !== row.on_hand) {
+        item.onHand = row.on_hand;
+        item.updatedBy = row.updated_by;
+        item.updatedAt = row.updated_at;
+        changed = true;
+      }
+    });
+    if (changed) {
+      updateStats();
+      renderInventory();
+    }
+    showSyncStatus('synced');
+  } catch(e) {
+    showSyncStatus('offline');
+  }
+}
+setInterval(pollUpdates, 15000);
 
 // ============================================================
 // HELPERS
@@ -614,6 +791,15 @@ function stockBarHTML(item) {
 // ============================================================
 // RENDER INVENTORY
 // ============================================================
+function setVendor(v) {
+  activeVendor = activeVendor === v ? 'all' : v;
+  ['Southern','Gate City','Chef Orders'].forEach(vn => {
+    const c = document.getElementById('chip-' + vn);
+    if (c) c.classList.toggle('active', activeVendor === vn);
+  });
+  renderInventory();
+}
+
 function setCategory(cat) {
   activeCategory = cat;
   document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
@@ -635,6 +821,7 @@ function renderInventory() {
     if (search) catItems = catItems.filter(i => i.name.toLowerCase().includes(search));
     if (activeFilters.low) catItems = catItems.filter(i => stockStatus(i) === 'low');
     if (activeFilters.out) catItems = catItems.filter(i => stockStatus(i) === 'out');
+    if (activeVendor !== 'all') catItems = catItems.filter(i => i.vendor === activeVendor);
     if (catItems.length === 0) return;
 
     const panel = document.createElement('div');
@@ -650,38 +837,51 @@ function renderInventory() {
           const status = stockStatus(item);
           const dotCls = {ok:'dot-ok',low:'dot-low',out:'dot-out',uncounted:'dot-na',na:'dot-na'}[status]||'dot-na';
           return `
+            <!-- MOBILE CARD -->
             <div class="inv-card">
               <div class="inv-card-info">
                 <div class="inv-card-name">${item.name}</div>
-                <div class="inv-card-par"><span class="tag tag-${pu.tag}">${pu.label}</span></div>
+                <div class="inv-card-par"><span class="tag tag-${pu.tag}">${pu.label}</span> ${vendorBadge(item.vendor)}${item.updatedBy ? ` <span style="font-size:10px;color:var(--text-dim)">by ${item.updatedBy}</span>` : ''}</div>
               </div>
               <div class="inv-card-right">
                 <input type="number" inputmode="decimal" class="qty-input ${item.onHand !== null ? 'has-value' : ''}"
                   value="${item.onHand !== null ? item.onHand : ''}"
                   placeholder="—"
-                  onchange="updateItem('${item.id}',this.value);this.classList.toggle('has-value',this.value!=='');updateStats();"
+                  onchange="this.classList.toggle('has-value',this.value!=='');updateItem('${item.id}',this.value,this);"
                 >
                 <div class="inv-card-status">
                   <span class="dot ${dotCls}"></span>
                   ${stockBarHTML(item)}
                 </div>
               </div>
-            </div>
-            <table class="inv-table" style="display:none">
-              <thead><tr><th>Item</th><th>Par</th><th>On Hand</th><th>Status</th><th>Stock</th></tr></thead>
-              <tbody><tr>
-                <td class="item-name">${item.name}</td>
-                <td><span class="tag tag-${pu.tag}">${pu.label}</span></td>
-                <td><input type="number" inputmode="decimal" class="qty-input ${item.onHand !== null ? 'has-value' : ''}"
-                  value="${item.onHand !== null ? item.onHand : ''}"
-                  placeholder="—"
-                  onchange="updateItem('${item.id}',this.value);this.classList.toggle('has-value',this.value!=='');updateStats();"
-                ></td>
-                <td>${statusBadge(status)}</td>
-                <td>${stockBarHTML(item)}</td>
-              </tr></tbody>
-            </table>`;
+            </div>`;
         }).join('')}
+        <!-- DESKTOP TABLE -->
+        <div class="inv-table-wrap">
+          <table class="inv-table">
+            <thead><tr>
+              <th>Item</th><th>Vendor</th><th>Par</th><th>On Hand</th><th>Status</th><th>Stock</th>
+            </tr></thead>
+            <tbody>
+              ${catItems.map(item => {
+                const pu = parUnit(item.par);
+                const status = stockStatus(item);
+                return `<tr>
+                  <td style="font-weight:500">${item.name}${item.updatedBy ? `<div style="font-size:10px;color:var(--text-dim);margin-top:2px">by ${item.updatedBy}</div>` : ''}</td>
+                  <td>${vendorBadge(item.vendor)}</td>
+                  <td><span class="tag tag-${pu.tag}">${pu.label}</span></td>
+                  <td><input type="number" inputmode="decimal" class="qty-input ${item.onHand !== null ? 'has-value' : ''}"
+                    value="${item.onHand !== null ? item.onHand : ''}"
+                    placeholder="—"
+                    onchange="this.classList.toggle('has-value',this.value!=='');updateItem('${item.id}',this.value,this);"
+                  ></td>
+                  <td>${statusBadge(status)}</td>
+                  <td>${stockBarHTML(item)}</td>
+                </tr>`;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
       </div>`;
     panels.appendChild(panel);
   });
@@ -717,6 +917,14 @@ function updateStats() {
 // ============================================================
 // ORDER DASHBOARD
 // ============================================================
+function vendorBadge(vendor) {
+  if (!vendor || vendor === '—') return '<span class="vendor-none">—</span>';
+  if (vendor === 'Southern') return '<span class="vendor-southern">Southern</span>';
+  if (vendor === 'Gate City') return '<span class="vendor-gate">Gate City</span>';
+  if (vendor === 'Chef Orders') return '<span class="vendor-chef">Chef Orders</span>';
+  return `<span class="vendor-none">${vendor}</span>`;
+}
+
 function renderOrder() {
   const dash = document.getElementById('orderDashboard');
   const needOrder = items.filter(i => {
@@ -734,15 +942,21 @@ function renderOrder() {
     return;
   }
 
-  const byCat = {};
-  CATEGORY_ORDER.forEach(c => byCat[c] = []);
-  needOrder.forEach(i => byCat[i.category].push(i));
+  const VENDOR_ORDER = ['Southern', 'Gate City', 'Chef Orders', '—'];
+  const byVendor = {};
+  VENDOR_ORDER.forEach(v => byVendor[v] = []);
+  needOrder.forEach(i => {
+    const v = i.vendor || '—';
+    if (!byVendor[v]) byVendor[v] = [];
+    byVendor[v].push(i);
+  });
 
-  dash.innerHTML = CATEGORY_ORDER.map(cat => {
-    if (!byCat[cat].length) return '';
+  dash.innerHTML = VENDOR_ORDER.map(vendor => {
+    if (!byVendor[vendor] || !byVendor[vendor].length) return '';
+    const label = vendor === '—' ? 'Unassigned' : vendor;
     return `<div class="order-section">
-      <div class="order-section-title">${cat}</div>
-      ${byCat[cat].map(item => {
+      <div class="order-section-title">${vendorBadge(vendor)} &nbsp;${label} <span style="font-size:11px;color:var(--text-dim)">(${byVendor[vendor].length} items)</span></div>
+      ${byVendor[vendor].map(item => {
         const status = stockStatus(item);
         const onH = item.onHand !== null ? item.onHand : '?';
         const parNum = parseFloat(item.par);
@@ -753,10 +967,11 @@ function renderOrder() {
         }
         return `<div class="order-card">
           <span class="badge badge-${status === 'out' ? 'out' : 'low'}" style="min-width:52px;text-align:center">${status === 'out' ? '🚨 OUT' : '⚠ LOW'}</span>
-          <span class="order-item-name">${item.name}</span>
-          <span class="order-detail">On Hand: ${onH}</span>
-          <span class="order-detail">Par: ${item.par}</span>
-          <div style="text-align:right">
+          <div style="flex:1;min-width:0">
+            <div class="order-item-name">${item.name}</div>
+            <div class="order-item-sub">${item.category} · Par: ${item.par} · On Hand: ${onH}</div>
+          </div>
+          <div style="text-align:right;flex-shrink:0">
             <div class="order-qty-needed">${needed}</div>
             <div class="order-qty-label">to order</div>
           </div>
@@ -867,10 +1082,10 @@ function clearAll() {
 function showTab(id) {
   ['inventory','order','cocktails','toast'].forEach(t => {
     document.getElementById('tab-' + t).style.display = t === id ? '' : 'none';
-  });
-  ['inventory','order','cocktails','toast'].forEach(t => {
-    const el = document.getElementById('nav-' + t);
-    if (el) el.classList.toggle('active', t === id);
+    const mob = document.getElementById('nav-' + t);
+    if (mob) mob.classList.toggle('active', t === id);
+    const desk = document.getElementById('dtab-' + t);
+    if (desk) desk.classList.toggle('active', t === id);
   });
   if (id === 'order') renderOrder();
 }
@@ -879,10 +1094,9 @@ function showTab(id) {
 // INIT
 // ============================================================
 document.getElementById('headerDate').textContent = new Date().toLocaleDateString('en-US', {weekday:'short', month:'short', day:'numeric', year:'numeric'});
-loadState();
-updateStats();
-renderInventory();
+items = DEFAULT_ITEMS.map(d => ({ ...d }));
 renderCocktails();
+loadState();
 </script>
 </body>
 </html>
