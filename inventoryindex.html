@@ -21,139 +21,183 @@
     --text-muted: #8a7f73;
     --text-dim: #5a5249;
   }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 14px; min-height: 100vh; }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html { font-size: 16px; }
+  body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; padding-bottom: 80px; }
 
   /* HEADER */
   header {
     background: var(--surface);
     border-bottom: 1px solid var(--border);
-    padding: 0 24px;
+    padding: 0 16px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    height: 64px;
+    height: 56px;
     position: sticky;
     top: 0;
     z-index: 100;
   }
-  .logo { display: flex; align-items: baseline; gap: 10px; }
-  .logo-main { font-family: 'Bebas Neue', sans-serif; font-size: 28px; color: var(--amber); letter-spacing: 2px; }
-  .logo-sub { font-size: 11px; color: var(--text-muted); letter-spacing: 3px; text-transform: uppercase; font-weight: 500; }
+  .logo { display: flex; align-items: baseline; gap: 8px; }
+  .logo-main { font-family: 'Bebas Neue', sans-serif; font-size: 24px; color: var(--amber); letter-spacing: 2px; }
+  .logo-sub { font-size: 10px; color: var(--text-muted); letter-spacing: 2px; text-transform: uppercase; font-weight: 500; display: none; }
   .header-date { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text-muted); }
 
-  /* TABS */
-  .tabs { display: flex; background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 24px; gap: 4px; }
-  .tab { padding: 12px 20px; font-size: 12px; font-weight: 500; letter-spacing: 1px; text-transform: uppercase; color: var(--text-muted); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s; }
-  .tab:hover { color: var(--text); }
-  .tab.active { color: var(--amber); border-bottom-color: var(--amber); }
+  /* BOTTOM NAV (mobile) */
+  .bottom-nav {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    display: flex;
+    z-index: 100;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .nav-item {
+    flex: 1; display: flex; flex-direction: column; align-items: center;
+    padding: 10px 4px 8px;
+    cursor: pointer; color: var(--text-dim); font-size: 10px; font-weight: 600;
+    letter-spacing: 0.5px; text-transform: uppercase; gap: 4px;
+    transition: color 0.15s;
+    border: none; background: none;
+  }
+  .nav-item .nav-icon { font-size: 20px; line-height: 1; }
+  .nav-item.active { color: var(--amber); }
 
   /* MAIN */
-  main { padding: 24px; max-width: 1400px; margin: 0 auto; }
+  main { padding: 16px; max-width: 1400px; margin: 0 auto; }
 
   /* SECTION PANEL */
-  .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; margin-bottom: 16px; overflow: hidden; }
-  .panel-header { padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; background: var(--surface2); border-bottom: 1px solid var(--border); }
+  .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 12px; overflow: hidden; }
+  .panel-header { padding: 16px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; background: var(--surface2); border-bottom: 1px solid var(--border); min-height: 52px; }
   .panel-header h3 { font-family: 'Bebas Neue', sans-serif; font-size: 18px; letter-spacing: 2px; color: var(--gold); }
-  .panel-toggle { color: var(--text-muted); font-size: 18px; transition: transform 0.2s; }
+  .panel-toggle { color: var(--text-muted); font-size: 20px; transition: transform 0.2s; padding: 4px; }
   .panel.collapsed .panel-toggle { transform: rotate(-90deg); }
   .panel.collapsed .panel-body { display: none; }
 
-  /* TABLE */
-  .inv-table { width: 100%; border-collapse: collapse; }
-  .inv-table thead tr { background: rgba(0,0,0,0.3); }
-  .inv-table th { padding: 10px 16px; text-align: left; font-size: 10px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-dim); white-space: nowrap; }
-  .inv-table td { padding: 10px 16px; border-bottom: 1px solid var(--border); vertical-align: middle; }
-  .inv-table tr:last-child td { border-bottom: none; }
-  .inv-table tr:hover td { background: rgba(212,130,42,0.04); }
-  .item-name { font-weight: 500; }
-  .item-par { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--text-muted); }
+  /* INVENTORY CARDS (mobile-first) */
+  .inv-card {
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .inv-card:last-child { border-bottom: none; }
+  .inv-card-info { flex: 1; min-width: 0; }
+  .inv-card-name { font-weight: 600; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .inv-card-par { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .inv-card-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex-shrink: 0; }
+  .inv-card-status { display: flex; align-items: center; gap: 6px; }
 
-  /* STATUS BADGE */
-  .badge { display: inline-block; padding: 2px 8px; border-radius: 3px; font-size: 10px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; }
-  .badge-ok { background: rgba(74,158,107,0.15); color: var(--green); }
-  .badge-low { background: rgba(212,130,42,0.15); color: var(--amber); }
-  .badge-out { background: rgba(201,64,64,0.15); color: var(--red); }
-  .badge-na { background: rgba(90,82,73,0.15); color: var(--text-dim); }
+  /* STATUS DOT */
+  .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .dot-ok { background: var(--green); }
+  .dot-low { background: var(--amber); }
+  .dot-out { background: var(--red); }
+  .dot-na { background: var(--border); }
 
   /* STOCK BAR */
-  .stock-bar-wrap { width: 100px; background: var(--border); border-radius: 2px; height: 4px; }
-  .stock-bar { height: 4px; border-radius: 2px; transition: width 0.3s; }
+  .stock-bar-wrap { width: 60px; background: var(--border); border-radius: 2px; height: 3px; }
+  .stock-bar { height: 3px; border-radius: 2px; transition: width 0.3s; }
   .bar-ok { background: var(--green); }
   .bar-low { background: var(--amber); }
   .bar-out { background: var(--red); }
 
-  /* INPUTS */
-  .qty-input { background: var(--bg); border: 1px solid var(--border); color: var(--text); border-radius: 4px; padding: 5px 10px; width: 80px; font-family: 'DM Mono', monospace; font-size: 13px; text-align: center; transition: border-color 0.2s; }
+  /* LARGE TOUCH INPUTS */
+  .qty-input {
+    background: var(--bg);
+    border: 1.5px solid var(--border);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 10px 8px;
+    width: 72px;
+    font-family: 'DM Mono', monospace;
+    font-size: 16px; /* prevents iOS zoom */
+    text-align: center;
+    transition: border-color 0.2s;
+    -webkit-appearance: none;
+  }
   .qty-input:focus { outline: none; border-color: var(--amber); }
-  .qty-input.has-value { border-color: var(--amber-dim); color: var(--amber); }
+  .qty-input.has-value { border-color: var(--amber-dim); color: var(--amber); background: rgba(212,130,42,0.06); }
 
   /* CONTROLS BAR */
-  .controls { display: flex; gap: 12px; align-items: center; margin-bottom: 20px; flex-wrap: wrap; }
-  .search-wrap { position: relative; flex: 1; min-width: 200px; }
-  .search-input { width: 100%; background: var(--surface); border: 1px solid var(--border); color: var(--text); border-radius: 4px; padding: 9px 14px 9px 36px; font-size: 13px; }
+  .controls { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
+  .search-wrap { position: relative; flex: 1; min-width: 0; }
+  .search-input {
+    width: 100%; background: var(--surface); border: 1px solid var(--border);
+    color: var(--text); border-radius: 8px; padding: 11px 14px 11px 38px;
+    font-size: 16px; /* prevents iOS zoom */
+    -webkit-appearance: none;
+  }
   .search-input:focus { outline: none; border-color: var(--amber); }
-  .search-icon { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--text-dim); font-size: 14px; }
-  .filter-btn { padding: 8px 16px; border: 1px solid var(--border); background: var(--surface); color: var(--text-muted); border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 500; letter-spacing: 0.5px; transition: all 0.2s; white-space: nowrap; }
-  .filter-btn:hover { border-color: var(--amber); color: var(--amber); }
+  .search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-dim); font-size: 16px; }
+  .filter-btn {
+    padding: 10px 14px; border: 1px solid var(--border); background: var(--surface);
+    color: var(--text-muted); border-radius: 8px; cursor: pointer; font-size: 13px;
+    font-weight: 500; transition: all 0.2s; white-space: nowrap; -webkit-appearance: none;
+  }
   .filter-btn.active { border-color: var(--amber); background: var(--amber-glow); color: var(--amber); }
-  .action-btn { padding: 8px 16px; border: 1px solid var(--amber-dim); background: transparent; color: var(--amber); border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 600; letter-spacing: 0.5px; transition: all 0.2s; }
-  .action-btn:hover { background: var(--amber-glow); }
+  .action-btn {
+    padding: 10px 16px; border: 1px solid var(--amber-dim); background: transparent;
+    color: var(--amber); border-radius: 8px; cursor: pointer; font-size: 13px;
+    font-weight: 600; transition: all 0.2s; -webkit-appearance: none;
+  }
+
+  /* FILTER CHIPS ROW */
+  .chip-row { display: flex; gap: 8px; margin-bottom: 14px; overflow-x: auto; padding-bottom: 4px; -webkit-overflow-scrolling: touch; }
+  .chip { padding: 7px 14px; border-radius: 20px; border: 1px solid var(--border); background: var(--surface); color: var(--text-muted); font-size: 13px; font-weight: 500; cursor: pointer; white-space: nowrap; transition: all 0.15s; flex-shrink: 0; }
+  .chip.active { border-color: var(--amber); background: var(--amber-glow); color: var(--amber); }
 
   /* TOAST UPLOAD */
-  .upload-zone { border: 2px dashed var(--border); border-radius: 6px; padding: 32px; text-align: center; cursor: pointer; transition: all 0.2s; margin-bottom: 20px; }
-  .upload-zone:hover, .upload-zone.drag { border-color: var(--amber); background: var(--amber-glow); }
+  .upload-zone { border: 2px dashed var(--border); border-radius: 10px; padding: 40px 20px; text-align: center; cursor: pointer; transition: all 0.2s; margin-bottom: 20px; }
+  .upload-zone.drag { border-color: var(--amber); background: var(--amber-glow); }
   .upload-zone input { display: none; }
-  .upload-icon { font-size: 36px; margin-bottom: 10px; }
-  .upload-title { font-family: 'Bebas Neue', sans-serif; font-size: 20px; letter-spacing: 2px; color: var(--text); margin-bottom: 6px; }
-  .upload-sub { color: var(--text-muted); font-size: 12px; }
-  .upload-success { color: var(--green); font-weight: 600; margin-top: 8px; font-size: 13px; }
+  .upload-icon { font-size: 40px; margin-bottom: 12px; }
+  .upload-title { font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 2px; color: var(--text); margin-bottom: 6px; }
+  .upload-sub { color: var(--text-muted); font-size: 13px; }
+  .upload-success { color: var(--green); font-weight: 600; margin-top: 10px; font-size: 14px; }
 
   /* STATS ROW */
-  .stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 20px; }
-  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 16px 20px; }
-  .stat-label { font-size: 10px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-dim); margin-bottom: 6px; }
-  .stat-val { font-family: 'Bebas Neue', sans-serif; font-size: 32px; letter-spacing: 1px; }
+  .stats-row { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 16px; }
+  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; }
+  .stat-label { font-size: 10px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-dim); margin-bottom: 4px; }
+  .stat-val { font-family: 'Bebas Neue', sans-serif; font-size: 36px; letter-spacing: 1px; line-height: 1; }
   .stat-val.amber { color: var(--amber); }
   .stat-val.red { color: var(--red); }
   .stat-val.green { color: var(--green); }
 
   /* ORDER DASHBOARD */
-  .order-section { margin-bottom: 24px; }
-  .order-section-title { font-family: 'Bebas Neue', sans-serif; font-size: 16px; letter-spacing: 3px; color: var(--text-muted); margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px solid var(--border); text-transform: uppercase; }
-  .order-card { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 14px 18px; margin-bottom: 8px; display: flex; align-items: center; gap: 16px; }
-  .order-item-name { flex: 1; font-weight: 500; }
-  .order-detail { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--text-muted); min-width: 80px; }
-  .order-qty-needed { font-family: 'Bebas Neue', sans-serif; font-size: 20px; color: var(--amber); letter-spacing: 1px; min-width: 60px; text-align: right; }
-  .order-qty-label { font-size: 10px; color: var(--text-dim); letter-spacing: 1px; }
+  .order-section { margin-bottom: 20px; }
+  .order-section-title { font-family: 'Bebas Neue', sans-serif; font-size: 15px; letter-spacing: 3px; color: var(--text-muted); margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px solid var(--border); text-transform: uppercase; }
+  .order-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; margin-bottom: 8px; display: flex; align-items: center; gap: 12px; }
+  .order-card-left { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
+  .order-item-name { font-weight: 600; font-size: 15px; }
+  .order-item-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .order-qty-needed { font-family: 'Bebas Neue', sans-serif; font-size: 28px; color: var(--amber); letter-spacing: 1px; text-align: right; flex-shrink: 0; }
+  .order-qty-label { font-size: 10px; color: var(--text-dim); letter-spacing: 1px; text-align: right; }
+
+  /* STATUS BADGE */
+  .badge { display: inline-block; padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; }
+  .badge-ok { background: rgba(74,158,107,0.15); color: var(--green); }
+  .badge-low { background: rgba(212,130,42,0.15); color: var(--amber); }
+  .badge-out { background: rgba(201,64,64,0.15); color: var(--red); }
+  .badge-na { background: rgba(90,82,73,0.15); color: var(--text-dim); }
 
   /* COCKTAIL RECIPE */
-  .cocktail-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
-  .cocktail-card { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 20px; }
-  .cocktail-name { font-family: 'Bebas Neue', sans-serif; font-size: 20px; letter-spacing: 2px; color: var(--gold); margin-bottom: 12px; }
-  .cocktail-ingredient { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .cocktail-grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
+  .cocktail-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 18px; }
+  .cocktail-name { font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 2px; color: var(--gold); margin-bottom: 12px; }
+  .cocktail-ingredient { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 15px; }
   .cocktail-ingredient:last-of-type { border-bottom: none; }
-  .ing-name { color: var(--text); }
-  .ing-qty { font-family: 'DM Mono', monospace; color: var(--amber); font-size: 12px; }
-  .cocktail-serve { margin-top: 10px; font-size: 11px; color: var(--text-muted); font-style: italic; }
+  .ing-qty { font-family: 'DM Mono', monospace; color: var(--amber); font-size: 13px; flex-shrink: 0; margin-left: 12px; }
+  .cocktail-serve { margin-top: 10px; font-size: 12px; color: var(--text-muted); font-style: italic; padding-top: 10px; border-top: 1px solid var(--border); }
 
   /* PRINT */
   @media print {
-    header, .tabs, .controls, .upload-zone { display: none !important; }
-    body { background: white; color: black; }
+    .bottom-nav, .controls, .chip-row, .upload-zone { display: none !important; }
+    body { background: white; color: black; padding-bottom: 0; }
     .panel { border: 1px solid #ccc; }
-    .inv-table td, .inv-table th { color: black; }
   }
 
-  /* MODAL */
-  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 1000; align-items: center; justify-content: center; }
-  .modal-overlay.open { display: flex; }
-  .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 28px; max-width: 420px; width: 90%; }
-  .modal h3 { font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 2px; color: var(--amber); margin-bottom: 16px; }
-  .modal p { color: var(--text-muted); font-size: 13px; line-height: 1.6; margin-bottom: 20px; }
-  .modal-btns { display: flex; gap: 10px; justify-content: flex-end; }
-
-  .tag { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 3px; font-size: 10px; font-weight: 600; letter-spacing: 0.5px; }
+  .tag { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
   .tag-keg { background: rgba(74,158,107,0.15); color: #4a9e6b; }
   .tag-bottle { background: rgba(212,130,42,0.15); color: var(--amber); }
   .tag-case { background: rgba(104,90,200,0.15); color: #a090e0; }
@@ -161,11 +205,37 @@
   .tag-flat { background: rgba(180,120,60,0.15); color: #c08040; }
   .tag-other { background: rgba(90,82,73,0.15); color: var(--text-muted); }
 
-  select.filter-btn { appearance: none; padding-right: 28px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%238a7f73'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; }
+  select.filter-btn { appearance: none; -webkit-appearance: none; padding-right: 28px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%238a7f73'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; background-color: var(--surface); }
 
-  .empty-state { text-align: center; padding: 48px; color: var(--text-dim); }
-  .empty-state .es-icon { font-size: 40px; margin-bottom: 12px; }
-  .empty-state .es-title { font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 2px; color: var(--text-muted); margin-bottom: 6px; }
+  .empty-state { text-align: center; padding: 48px 20px; color: var(--text-dim); }
+  .empty-state .es-icon { font-size: 44px; margin-bottom: 12px; }
+  .empty-state .es-title { font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 2px; color: var(--text-muted); margin-bottom: 8px; }
+
+  /* DESKTOP ENHANCEMENTS */
+  @media (min-width: 640px) {
+    header { padding: 0 24px; height: 64px; }
+    .logo-main { font-size: 28px; }
+    .logo-sub { display: inline; }
+    main { padding: 24px; }
+    .stats-row { grid-template-columns: repeat(4, 1fr); }
+    .cocktail-grid { grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); }
+    .inv-card-name { font-size: 14px; }
+    .qty-input { width: 80px; font-size: 14px; }
+  }
+
+  /* TABLE VIEW on desktop for inventory */
+  @media (min-width: 800px) {
+    .inv-table { width: 100%; border-collapse: collapse; display: table; }
+    .inv-table thead tr { background: rgba(0,0,0,0.3); }
+    .inv-table th { padding: 10px 16px; text-align: left; font-size: 10px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-dim); white-space: nowrap; }
+    .inv-table td { padding: 10px 16px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    .inv-table tr:last-child td { border-bottom: none; }
+    .inv-card { display: none; }
+    .desktop-only { display: table-row !important; }
+  }
+  @media (max-width: 799px) {
+    .inv-table { display: none; }
+  }
 </style>
 </head>
 <body>
@@ -178,12 +248,20 @@
   <span class="header-date" id="headerDate"></span>
 </header>
 
-<div class="tabs">
-  <div class="tab active" onclick="showTab('inventory')">📋 Inventory</div>
-  <div class="tab" onclick="showTab('order')">🛒 Order Dashboard</div>
-  <div class="tab" onclick="showTab('cocktails')">🍹 Cocktail Builds</div>
-  <div class="tab" onclick="showTab('toast')">📊 Toast POS Upload</div>
-</div>
+<nav class="bottom-nav">
+  <button class="nav-item active" onclick="showTab('inventory')" id="nav-inventory">
+    <span class="nav-icon">📋</span>Inventory
+  </button>
+  <button class="nav-item" onclick="showTab('order')" id="nav-order">
+    <span class="nav-icon">🛒</span>Order
+  </button>
+  <button class="nav-item" onclick="showTab('cocktails')" id="nav-cocktails">
+    <span class="nav-icon">🍹</span>Cocktails
+  </button>
+  <button class="nav-item" onclick="showTab('toast')" id="nav-toast">
+    <span class="nav-icon">📊</span>Toast
+  </button>
+</nav>
 
 <main>
 
@@ -195,23 +273,21 @@
       <span class="search-icon">🔍</span>
       <input type="text" class="search-input" id="searchInput" placeholder="Search items..." oninput="renderInventory()">
     </div>
-    <select class="filter-btn" id="categoryFilter" onchange="renderInventory()">
-      <option value="all">All Categories</option>
-      <option value="Spirits">Spirits</option>
-      <option value="Beer/Wine">Beer / Wine</option>
-      <option value="Mixers/Garnishes">Mixers & Garnishes</option>
-      <option value="Paper Goods">Paper Goods</option>
-      <option value="FOH Supplies">FOH Supplies</option>
-    </select>
-    <button class="filter-btn" id="filterLow" onclick="toggleFilter('low')">⚠️ Low Stock</button>
-    <button class="filter-btn" id="filterOut" onclick="toggleFilter('out')">🚨 Out of Stock</button>
-    <button class="action-btn" onclick="clearAll()">Clear All Counts</button>
-    <button class="action-btn" onclick="exportCSV()">Export CSV</button>
-    <button class="action-btn" onclick="window.print()">Print</button>
+    <button class="action-btn" onclick="clearAll()">Clear</button>
+    <button class="action-btn" onclick="exportCSV()">Export</button>
+  </div>
+  <div class="chip-row">
+    <div class="chip active" id="chip-all" onclick="setCategory('all')">All</div>
+    <div class="chip" id="chip-Spirits" onclick="setCategory('Spirits')">🥃 Spirits</div>
+    <div class="chip" id="chip-Beer/Wine" onclick="setCategory('Beer/Wine')">🍺 Beer/Wine</div>
+    <div class="chip" id="chip-Mixers/Garnishes" onclick="setCategory('Mixers/Garnishes')">🍋 Mixers</div>
+    <div class="chip" id="chip-Paper Goods" onclick="setCategory('Paper Goods')">📦 Paper</div>
+    <div class="chip" id="chip-FOH Supplies" onclick="setCategory('FOH Supplies')">🍽 FOH</div>
+    <div class="chip" id="chip-low" onclick="toggleFilter('low')">⚠️ Low</div>
+    <div class="chip" id="chip-out" onclick="toggleFilter('out')">🚨 Out</div>
   </div>
   <div id="inventoryPanels"></div>
 </div>
-
 <!-- ===== ORDER DASHBOARD TAB ===== -->
 <div id="tab-order" style="display:none">
   <div class="controls">
@@ -458,6 +534,7 @@ const STORAGE_KEY = "hendos_v5";
 // ============================================================
 let items = [];
 let activeFilters = { low: false, out: false };
+let activeCategory = 'all';
 let toastData = null; // parsed CSV data
 
 function loadState() {
@@ -537,15 +614,22 @@ function stockBarHTML(item) {
 // ============================================================
 // RENDER INVENTORY
 // ============================================================
+function setCategory(cat) {
+  activeCategory = cat;
+  document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+  const chip = document.getElementById('chip-' + cat);
+  if (chip) chip.classList.add('active');
+  // clear status filters when switching category
+  renderInventory();
+}
+
 function renderInventory() {
   const search = document.getElementById('searchInput').value.toLowerCase();
-  const catFilter = document.getElementById('categoryFilter').value;
-
   const panels = document.getElementById('inventoryPanels');
   panels.innerHTML = '';
 
   CATEGORY_ORDER.forEach(cat => {
-    if (catFilter !== 'all' && catFilter !== cat) return;
+    if (activeCategory !== 'all' && activeCategory !== cat) return;
 
     let catItems = items.filter(i => i.category === cat);
     if (search) catItems = catItems.filter(i => i.name.toLowerCase().includes(search));
@@ -561,28 +645,43 @@ function renderInventory() {
         <span class="panel-toggle">▾</span>
       </div>
       <div class="panel-body">
-        <table class="inv-table">
-          <thead><tr>
-            <th>Item</th><th>Par</th><th>On Hand</th><th>Status</th><th>Stock</th>
-          </tr></thead>
-          <tbody>
-            ${catItems.map(item => {
-              const pu = parUnit(item.par);
-              const status = stockStatus(item);
-              return `<tr>
-                <td class="item-name">${item.name}</td>
-                <td><span class="tag tag-${pu.tag}">${pu.label}</span></td>
-                <td><input type="text" class="qty-input ${item.onHand !== null ? 'has-value' : ''}"
+        ${catItems.map(item => {
+          const pu = parUnit(item.par);
+          const status = stockStatus(item);
+          const dotCls = {ok:'dot-ok',low:'dot-low',out:'dot-out',uncounted:'dot-na',na:'dot-na'}[status]||'dot-na';
+          return `
+            <div class="inv-card">
+              <div class="inv-card-info">
+                <div class="inv-card-name">${item.name}</div>
+                <div class="inv-card-par"><span class="tag tag-${pu.tag}">${pu.label}</span></div>
+              </div>
+              <div class="inv-card-right">
+                <input type="number" inputmode="decimal" class="qty-input ${item.onHand !== null ? 'has-value' : ''}"
                   value="${item.onHand !== null ? item.onHand : ''}"
                   placeholder="—"
-                  onchange="updateItem('${item.id}',this.value);this.classList.toggle('has-value',this.value!=='');updateStats();renderOrder()"
+                  onchange="updateItem('${item.id}',this.value);this.classList.toggle('has-value',this.value!=='');updateStats();"
+                >
+                <div class="inv-card-status">
+                  <span class="dot ${dotCls}"></span>
+                  ${stockBarHTML(item)}
+                </div>
+              </div>
+            </div>
+            <table class="inv-table" style="display:none">
+              <thead><tr><th>Item</th><th>Par</th><th>On Hand</th><th>Status</th><th>Stock</th></tr></thead>
+              <tbody><tr>
+                <td class="item-name">${item.name}</td>
+                <td><span class="tag tag-${pu.tag}">${pu.label}</span></td>
+                <td><input type="number" inputmode="decimal" class="qty-input ${item.onHand !== null ? 'has-value' : ''}"
+                  value="${item.onHand !== null ? item.onHand : ''}"
+                  placeholder="—"
+                  onchange="updateItem('${item.id}',this.value);this.classList.toggle('has-value',this.value!=='');updateStats();"
                 ></td>
                 <td>${statusBadge(status)}</td>
                 <td>${stockBarHTML(item)}</td>
-              </tr>`;
-            }).join('')}
-          </tbody>
-        </table>
+              </tr></tbody>
+            </table>`;
+        }).join('')}
       </div>`;
     panels.appendChild(panel);
   });
@@ -594,7 +693,8 @@ function togglePanel(header) {
 
 function toggleFilter(type) {
   activeFilters[type] = !activeFilters[type];
-  document.getElementById('filter' + type.charAt(0).toUpperCase() + type.slice(1)).classList.toggle('active', activeFilters[type]);
+  const chip = document.getElementById('chip-' + type);
+  if (chip) chip.classList.toggle('active', activeFilters[type]);
   renderInventory();
 }
 
@@ -768,9 +868,9 @@ function showTab(id) {
   ['inventory','order','cocktails','toast'].forEach(t => {
     document.getElementById('tab-' + t).style.display = t === id ? '' : 'none';
   });
-  document.querySelectorAll('.tab').forEach((el, i) => {
-    const ids = ['inventory','order','cocktails','toast'];
-    el.classList.toggle('active', ids[i] === id);
+  ['inventory','order','cocktails','toast'].forEach(t => {
+    const el = document.getElementById('nav-' + t);
+    if (el) el.classList.toggle('active', t === id);
   });
   if (id === 'order') renderOrder();
 }
