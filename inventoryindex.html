@@ -738,8 +738,7 @@ function getUsername() {
 }
 
 async function loadState() {
-  // Start with default items
-  items = DEFAULT_ITEMS.map(d => ({ ...d }));
+  // DON'T reset items here - loadCustomItems already applied DB overrides on top of DEFAULT_ITEMS
   showSyncStatus('loading');
   try {
     const rows = await sbFetch('/rest/v1/inventory_counts?select=*');
@@ -754,14 +753,13 @@ async function loadState() {
     showSyncStatus('synced');
   } catch(e) {
     console.error('Load failed, using local fallback:', e);
-    // Fall back to localStorage
     try {
       const saved = localStorage.getItem('hendos_local');
       if (saved) {
         const parsed = JSON.parse(saved);
-        items = DEFAULT_ITEMS.map(def => {
-          const s = parsed.find(p => p.id === def.id);
-          return s ? { ...def, onHand: s.onHand } : { ...def };
+        parsed.forEach(p => {
+          const item = items.find(i => i.id === p.id);
+          if (item) item.onHand = p.onHand;
         });
       }
     } catch(e2) {}
@@ -1389,9 +1387,14 @@ async function loadCustomItems() {
 // INIT
 // ============================================================
 document.getElementById('headerDate').textContent = new Date().toLocaleDateString('en-US', {weekday:'short', month:'short', day:'numeric', year:'numeric'});
+// Build item list: start with defaults, then DB overrides, then on-hand counts
 items = DEFAULT_ITEMS.map(d => ({ ...d }));
 renderCocktails();
-loadCustomItems().then(() => loadState());
+// Load in sequence: custom item overrides first, then on-hand counts
+(async () => {
+  await loadCustomItems();  // applies DB name/par/vendor overrides onto items
+  await loadState();        // applies on-hand counts (does NOT reset items)
+})();
 </script>
 </body>
 </html>
