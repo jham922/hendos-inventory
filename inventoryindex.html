@@ -269,6 +269,18 @@
     .inv-card { display: none !important; }
     .inv-table-wrap { display: block !important; }
   }
+
+  /* ADMIN TABLE */
+  .admin-table { width:100%;border-collapse:collapse; }
+  .admin-table th { padding:10px 14px;text-align:left;font-size:10px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-dim);background:rgba(0,0,0,0.3);white-space:nowrap; }
+  .admin-table td { padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:middle;font-size:13px; }
+  .admin-table tr:last-child td { border-bottom:none; }
+  .admin-table tr:hover td { background:rgba(212,130,42,0.04); }
+  .edit-btn { padding:5px 12px;border:1px solid var(--border);background:transparent;color:var(--text-muted);border-radius:5px;cursor:pointer;font-size:11px;font-weight:600; }
+  .edit-btn:hover { border-color:var(--amber);color:var(--amber); }
+  .del-btn { padding:5px 12px;border:1px solid var(--border);background:transparent;color:var(--text-muted);border-radius:5px;cursor:pointer;font-size:11px;font-weight:600;margin-left:6px; }
+  .del-btn:hover { border-color:var(--red);color:var(--red); }
+
 </style>
 </head>
 <body>
@@ -287,6 +299,7 @@
   <div class="tab" onclick="showTab('order')" id="dtab-order">🛒 Order Dashboard</div>
   <div class="tab" onclick="showTab('cocktails')" id="dtab-cocktails">🍹 Cocktail Builds</div>
   <div class="tab" onclick="showTab('toast')" id="dtab-toast">📊 Toast POS</div>
+  <div class="tab" onclick="showTab('admin')" id="dtab-admin">⚙️ Admin</div>
 </div>
 
 <!-- MOBILE BOTTOM NAV -->
@@ -302,6 +315,9 @@
   </button>
   <button class="nav-item" onclick="showTab('toast')" id="nav-toast">
     <span class="nav-icon">📊</span>Toast
+  </button>
+  <button class="nav-item" onclick="showTab('admin')" id="nav-admin">
+    <span class="nav-icon">⚙️</span>Admin
   </button>
 </nav>
 
@@ -357,6 +373,81 @@
     <div class="upload-success" id="uploadSuccess"></div>
   </div>
   <div id="toastResults"></div>
+</div>
+
+
+<!-- ===== ADMIN TAB ===== -->
+<div id="tab-admin" style="display:none">
+  <div id="adminLock">
+    <div style="max-width:360px;margin:60px auto;text-align:center">
+      <div style="font-size:48px;margin-bottom:16px">🔒</div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:2px;color:var(--gold);margin-bottom:8px">Admin Access</div>
+      <div style="color:var(--text-muted);font-size:13px;margin-bottom:24px">Enter the admin password to manage products and pars</div>
+      <input type="password" id="adminPassInput" class="search-input" placeholder="Password" style="margin-bottom:12px;text-align:center;padding-left:14px" onkeydown="if(event.key==='Enter')checkAdminPass()">
+      <br>
+      <button class="action-btn" onclick="checkAdminPass()" style="margin-top:8px;width:100%;padding:14px">Unlock</button>
+      <div id="adminPassError" style="color:var(--red);font-size:12px;margin-top:10px"></div>
+    </div>
+  </div>
+
+  <div id="adminPanel" style="display:none">
+    <div class="controls">
+      <button class="action-btn" onclick="showAddItem()">+ Add Item</button>
+      <div class="search-wrap">
+        <span class="search-icon">🔍</span>
+        <input type="text" class="search-input" id="adminSearch" placeholder="Search items..." oninput="renderAdminTable()">
+      </div>
+      <select class="filter-btn" id="adminCatFilter" onchange="renderAdminTable()" style="appearance:none;-webkit-appearance:none;background-color:var(--surface)">
+        <option value="all">All Categories</option>
+        <option value="Spirits">Spirits</option>
+        <option value="Beer/Wine">Beer/Wine</option>
+        <option value="Mixers/Garnishes">Mixers/Garnishes</option>
+        <option value="Paper Goods">Paper Goods</option>
+        <option value="FOH Supplies">FOH Supplies</option>
+      </select>
+    </div>
+    <div id="adminTableWrap"></div>
+  </div>
+
+  <!-- ADD/EDIT MODAL -->
+  <div id="itemModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:200;align-items:center;justify-content:center">
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:28px;width:90%;max-width:480px;max-height:90vh;overflow-y:auto">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:2px;color:var(--gold);margin-bottom:20px" id="modalTitle">Add Item</div>
+      <input type="hidden" id="editItemId">
+      <div style="margin-bottom:14px">
+        <label style="font-size:11px;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase;display:block;margin-bottom:6px">Item Name</label>
+        <input type="text" id="editName" class="search-input" placeholder="e.g. Grey Goose" style="padding-left:14px">
+      </div>
+      <div style="margin-bottom:14px">
+        <label style="font-size:11px;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase;display:block;margin-bottom:6px">Category</label>
+        <select id="editCategory" class="filter-btn" style="width:100%;appearance:none;-webkit-appearance:none;background-color:var(--bg)">
+          <option value="Spirits">Spirits</option>
+          <option value="Beer/Wine">Beer/Wine</option>
+          <option value="Mixers/Garnishes">Mixers/Garnishes</option>
+          <option value="Paper Goods">Paper Goods</option>
+          <option value="FOH Supplies">FOH Supplies</option>
+        </select>
+      </div>
+      <div style="margin-bottom:14px">
+        <label style="font-size:11px;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase;display:block;margin-bottom:6px">Vendor</label>
+        <select id="editVendor" class="filter-btn" style="width:100%;appearance:none;-webkit-appearance:none;background-color:var(--bg)">
+          <option value="Southern">Southern</option>
+          <option value="Gate City">Gate City</option>
+          <option value="Chef Orders">Chef Orders</option>
+          <option value="—">Unassigned</option>
+        </select>
+      </div>
+      <div style="margin-bottom:20px">
+        <label style="font-size:11px;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase;display:block;margin-bottom:6px">Par Level</label>
+        <input type="text" id="editPar" class="search-input" placeholder="e.g. 1 case, 6 bottles, 2 kegs" style="padding-left:14px">
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end">
+        <button class="filter-btn" onclick="closeModal()">Cancel</button>
+        <button class="action-btn" onclick="saveItemAdmin()" style="padding:10px 24px">Save</button>
+      </div>
+      <div id="modalError" style="color:var(--red);font-size:12px;margin-top:10px;text-align:center"></div>
+    </div>
+  </div>
 </div>
 
 </main>
@@ -1096,7 +1187,7 @@ function clearAll() {
 // TABS
 // ============================================================
 function showTab(id) {
-  ['inventory','order','cocktails','toast'].forEach(t => {
+  ['inventory','order','cocktails','toast','admin'].forEach(t => {
     document.getElementById('tab-' + t).style.display = t === id ? '' : 'none';
     const mob = document.getElementById('nav-' + t);
     if (mob) mob.classList.toggle('active', t === id);
@@ -1106,13 +1197,157 @@ function showTab(id) {
   if (id === 'order') renderOrder();
 }
 
+
+// ============================================================
+// ADMIN
+// ============================================================
+const ADMIN_PASSWORD = 'hendos2024';
+
+function checkAdminPass() {
+  const val = document.getElementById('adminPassInput').value;
+  if (val === ADMIN_PASSWORD) {
+    document.getElementById('adminLock').style.display = 'none';
+    document.getElementById('adminPanel').style.display = 'block';
+    renderAdminTable();
+  } else {
+    document.getElementById('adminPassError').textContent = 'Incorrect password';
+    document.getElementById('adminPassInput').value = '';
+  }
+}
+
+function renderAdminTable() {
+  const search = document.getElementById('adminSearch').value.toLowerCase();
+  const cat = document.getElementById('adminCatFilter').value;
+  let filtered = items.filter(i => {
+    if (cat !== 'all' && i.category !== cat) return false;
+    if (search && !i.name.toLowerCase().includes(search)) return false;
+    return true;
+  });
+
+  const wrap = document.getElementById('adminTableWrap');
+  if (!filtered.length) {
+    wrap.innerHTML = '<div class="empty-state"><div class="es-icon">📭</div><div class="es-title">No items found</div></div>';
+    return;
+  }
+
+  wrap.innerHTML = `<div class="panel"><div class="panel-body" style="overflow-x:auto">
+    <table class="admin-table">
+      <thead><tr><th>Item</th><th>Category</th><th>Vendor</th><th>Par</th><th>Actions</th></tr></thead>
+      <tbody>
+        ${filtered.map(item => `<tr>
+          <td style="font-weight:500">${item.name}</td>
+          <td><span style="font-size:11px;color:var(--text-muted)">${item.category}</span></td>
+          <td>${vendorBadge(item.vendor)}</td>
+          <td><span class="tag tag-other">${item.par}</span></td>
+          <td>
+            <button class="edit-btn" onclick="editItem('${item.id}')">Edit</button>
+            <button class="del-btn" onclick="deleteItem('${item.id}','${item.name.replace(/'/g,"\\'") }')">Remove</button>
+          </td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
+  </div></div>`;
+}
+
+function showAddItem() {
+  document.getElementById('modalTitle').textContent = 'Add Item';
+  document.getElementById('editItemId').value = '';
+  document.getElementById('editName').value = '';
+  document.getElementById('editCategory').value = 'Spirits';
+  document.getElementById('editVendor').value = 'Southern';
+  document.getElementById('editPar').value = '';
+  document.getElementById('modalError').textContent = '';
+  document.getElementById('itemModal').style.display = 'flex';
+}
+
+function editItem(id) {
+  const item = items.find(i => i.id === id);
+  if (!item) return;
+  document.getElementById('modalTitle').textContent = 'Edit Item';
+  document.getElementById('editItemId').value = id;
+  document.getElementById('editName').value = item.name;
+  document.getElementById('editCategory').value = item.category;
+  document.getElementById('editVendor').value = item.vendor || '—';
+  document.getElementById('editPar').value = item.par;
+  document.getElementById('modalError').textContent = '';
+  document.getElementById('itemModal').style.display = 'flex';
+}
+
+function closeModal() {
+  document.getElementById('itemModal').style.display = 'none';
+}
+
+async function saveItemAdmin() {
+  const id = document.getElementById('editItemId').value;
+  const name = document.getElementById('editName').value.trim();
+  const category = document.getElementById('editCategory').value;
+  const vendor = document.getElementById('editVendor').value;
+  const par = document.getElementById('editPar').value.trim();
+
+  if (!name) { document.getElementById('modalError').textContent = 'Name is required'; return; }
+  if (!par) { document.getElementById('modalError').textContent = 'Par level is required'; return; }
+
+  const isNew = !id;
+  const newId = id || (category.charAt(0).toLowerCase() + 'custom_' + Date.now());
+
+  const record = { id: newId, name, category, vendor, par, updated_at: new Date().toISOString() };
+
+  try {
+    if (isNew) {
+      await sbFetch('/rest/v1/inventory_items', { method: 'POST', body: JSON.stringify(record) });
+      items.push({ ...record, onHand: null });
+    } else {
+      await sbFetch('/rest/v1/inventory_items?id=eq.' + encodeURIComponent(id), { method: 'PATCH', body: JSON.stringify({ name, category, vendor, par, updated_at: new Date().toISOString() }) });
+      const item = items.find(i => i.id === id);
+      if (item) Object.assign(item, { name, category, vendor, par });
+    }
+    closeModal();
+    renderAdminTable();
+    renderInventory();
+    updateStats();
+  } catch(e) {
+    document.getElementById('modalError').textContent = 'Save failed: ' + e.message;
+  }
+}
+
+async function deleteItem(id, name) {
+  if (!confirm('Remove "' + name + '" from inventory?')) return;
+  try {
+    await sbFetch('/rest/v1/inventory_items?id=eq.' + encodeURIComponent(id), { method: 'DELETE' });
+    items = items.filter(i => i.id !== id);
+    renderAdminTable();
+    renderInventory();
+    updateStats();
+  } catch(e) {
+    alert('Delete failed: ' + e.message);
+  }
+}
+
+// On load, also pull any custom items from Supabase inventory_items table
+async function loadCustomItems() {
+  try {
+    const rows = await sbFetch('/rest/v1/inventory_items?select=*&active=eq.true');
+    rows.forEach(row => {
+      if (!items.find(i => i.id === row.id)) {
+        items.push({ id: row.id, name: row.name, category: row.category, vendor: row.vendor || '—', par: row.par, onHand: null });
+      } else {
+        // Update existing item with latest par/vendor from DB
+        const item = items.find(i => i.id === row.id);
+        if (item) { item.par = row.par; item.vendor = row.vendor || '—'; item.name = row.name; }
+      }
+    });
+  } catch(e) {
+    console.log('Could not load custom items:', e);
+  }
+}
+
 // ============================================================
 // INIT
 // ============================================================
 document.getElementById('headerDate').textContent = new Date().toLocaleDateString('en-US', {weekday:'short', month:'short', day:'numeric', year:'numeric'});
 items = DEFAULT_ITEMS.map(d => ({ ...d }));
 renderCocktails();
-loadState();
+loadCustomItems().then(() => loadState());
 </script>
 </body>
 </html>
