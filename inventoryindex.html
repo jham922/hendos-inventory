@@ -681,11 +681,19 @@ async function saveItem(id, val, updatedBy) {
   localStorage.setItem('hendos_local', JSON.stringify(items.map(i => ({ id: i.id, onHand: i.onHand }))));
   showSyncStatus('saving');
   try {
-    await sbFetch('/rest/v1/inventory_counts', {
-      method: 'POST',
-      headers: { 'Prefer': 'resolution=merge-duplicates,return=representation' },
-      body: JSON.stringify({ id, on_hand: val, updated_by: updatedBy, updated_at: new Date().toISOString() })
-    });
+    // Use PATCH to update if exists, POST to insert if not
+    const existing = await sbFetch('/rest/v1/inventory_counts?id=eq.' + encodeURIComponent(id) + '&select=id');
+    if (existing && existing.length > 0) {
+      await sbFetch('/rest/v1/inventory_counts?id=eq.' + encodeURIComponent(id), {
+        method: 'PATCH',
+        body: JSON.stringify({ on_hand: val, updated_by: updatedBy, updated_at: new Date().toISOString() })
+      });
+    } else {
+      await sbFetch('/rest/v1/inventory_counts', {
+        method: 'POST',
+        body: JSON.stringify({ id, on_hand: val, updated_by: updatedBy, updated_at: new Date().toISOString() })
+      });
+    }
     showSyncStatus('synced');
   } catch(e) {
     console.error('Save failed:', e);
@@ -707,7 +715,13 @@ function showSyncStatus(state) {
   el.style.color = s.color;
 }
 
-async function updateItem(id, val, inputEl) {
+function handleCountInput(el, id) {
+  const val = el.value;
+  el.classList.toggle('has-value', val !== '');
+  updateItem(id, val);
+}
+
+async function updateItem(id, val) {
   const username = getUsername();
   const item = items.find(i => i.id === id);
   if (item) {
@@ -847,7 +861,7 @@ function renderInventory() {
                 <input type="number" inputmode="decimal" class="qty-input ${item.onHand !== null ? 'has-value' : ''}"
                   value="${item.onHand !== null ? item.onHand : ''}"
                   placeholder="—"
-                  onchange="this.classList.toggle('has-value',this.value!=='');updateItem('${item.id}',this.value,this);"
+                  onchange="handleCountInput(this,'${item.id}')"
                 >
                 <div class="inv-card-status">
                   <span class="dot ${dotCls}"></span>
@@ -873,7 +887,7 @@ function renderInventory() {
                   <td><input type="number" inputmode="decimal" class="qty-input ${item.onHand !== null ? 'has-value' : ''}"
                     value="${item.onHand !== null ? item.onHand : ''}"
                     placeholder="—"
-                    onchange="this.classList.toggle('has-value',this.value!=='');updateItem('${item.id}',this.value,this);"
+                    onchange="handleCountInput(this,'${item.id}')"
                   ></td>
                   <td>${statusBadge(status)}</td>
                   <td>${stockBarHTML(item)}</td>
