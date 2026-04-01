@@ -1216,7 +1216,7 @@ async function clearAll() {
   // Delete all rows from inventory_counts in Supabase, then re-insert as 0
   try {
     // Delete existing counts
-    await sbFetch('/rest/v1/inventory_counts?id=neq.none', { method: 'DELETE' });
+    await sbFetch('/rest/v1/inventory_counts?updated_at=gte.2000-01-01', { method: 'DELETE' });
     // Insert all as 0
     const rows = items.map(i => ({
       id: i.id,
