@@ -1208,30 +1208,24 @@ function dateStr() {
 async function clearAll() {
   if (!confirm('Reset ALL on-hand counts to 0? This will update for everyone.')) return;
   showSyncStatus('saving');
-  // Set all to 0 locally
-  items.forEach(i => i.onHand = '0');
+
+  // Clear localStorage immediately so refresh doesn't bring counts back
+  localStorage.removeItem('hendos_local');
+
+  // Set all to null locally (blank, not 0)
+  items.forEach(i => { i.onHand = null; i.updatedBy = null; });
   renderInventory();
   updateStats();
   renderOrder();
-  // Delete all rows from inventory_counts in Supabase, then re-insert as 0
+
   try {
-    // Delete existing counts
-    await sbFetch('/rest/v1/inventory_counts?updated_at=gte.2000-01-01', { method: 'DELETE' });
-    // Insert all as 0
-    const rows = items.map(i => ({
-      id: i.id,
-      on_hand: '0',
-      updated_by: currentUser || 'System',
-      updated_at: new Date().toISOString()
-    }));
-    // Insert in batches of 50
-    for (let i = 0; i < rows.length; i += 50) {
-      await sbFetch('/rest/v1/inventory_counts', {
-        method: 'POST',
-        body: JSON.stringify(rows.slice(i, i + 50))
-      });
+    // Use SQL via a stored procedure approach — delete each row individually
+    // by fetching existing IDs and deleting them one by one if needed,
+    // OR use a broad filter that Supabase accepts
+    const existing = await sbFetch('/rest/v1/inventory_counts?select=id');
+    for (const row of existing) {
+      await sbFetch('/rest/v1/inventory_counts?id=eq.' + encodeURIComponent(row.id), { method: 'DELETE' });
     }
-    localStorage.setItem('hendos_local', JSON.stringify(items.map(i => ({ id: i.id, onHand: '0' }))));
     showSyncStatus('synced');
   } catch(e) {
     console.error('Clear failed:', e);
