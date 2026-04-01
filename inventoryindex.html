@@ -1206,38 +1206,35 @@ function dateStr() {
 }
 
 async function clearAll() {
-  if (!confirm('Reset all counts to 0?')) return;
-  const now = new Date().toISOString();
-  const username = currentUser || 'Staff';
-
-  // Update local state immediately
-  items.forEach(i => { i.onHand = '0'; i.updatedBy = username; i.updatedAt = now; });
+  if (!confirm('Reset ALL on-hand counts to 0? This will update for everyone.')) return;
+  showSyncStatus('saving');
+  // Set all to 0 locally
+  items.forEach(i => i.onHand = '0');
   renderInventory();
   updateStats();
   renderOrder();
-  showSyncStatus('saving');
-
+  // Delete all rows from inventory_counts in Supabase, then re-insert as 0
   try {
-    // Delete all existing rows
-    await sbFetch('/rest/v1/inventory_counts?id=not.is.null', { method: 'DELETE' });
-
-    // Re-insert every item with on_hand '0' in batches of 50
-    const batchSize = 50;
-    for (let i = 0; i < items.length; i += batchSize) {
-      const batch = items.slice(i, i + batchSize).map(item => ({
-        id: item.id,
-        on_hand: '0',
-        updated_by: username,
-        updated_at: now
-      }));
+    // Delete existing counts
+    await sbFetch('/rest/v1/inventory_counts?id=neq.none', { method: 'DELETE' });
+    // Insert all as 0
+    const rows = items.map(i => ({
+      id: i.id,
+      on_hand: '0',
+      updated_by: currentUser || 'System',
+      updated_at: new Date().toISOString()
+    }));
+    // Insert in batches of 50
+    for (let i = 0; i < rows.length; i += 50) {
       await sbFetch('/rest/v1/inventory_counts', {
         method: 'POST',
-        body: JSON.stringify(batch)
+        body: JSON.stringify(rows.slice(i, i + 50))
       });
     }
+    localStorage.setItem('hendos_local', JSON.stringify(items.map(i => ({ id: i.id, onHand: '0' }))));
     showSyncStatus('synced');
   } catch(e) {
-    console.error('Reset failed:', e);
+    console.error('Clear failed:', e);
     showSyncStatus('offline');
   }
 }
