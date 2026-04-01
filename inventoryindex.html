@@ -331,7 +331,7 @@
       <span class="search-icon">🔍</span>
       <input type="text" class="search-input" id="searchInput" placeholder="Search items..." oninput="renderInventory()">
     </div>
-    <button class="action-btn" onclick="clearAll()">Clear</button>
+    <button class="action-btn" onclick="clearAll()" style="border-color:var(--red);color:var(--red)">🔄 Reset Counts</button>
     <button class="action-btn" onclick="exportCSV()">Export</button>
   </div>
   <div class="chip-row">
@@ -1205,13 +1205,41 @@ function dateStr() {
   return new Date().toISOString().slice(0,10);
 }
 
-function clearAll() {
-  if (!confirm('Clear all on-hand counts?')) return;
-  items.forEach(i => i.onHand = null);
-  saveState();
+async function clearAll() {
+  if (!confirm('Reset all counts to 0?')) return;
+  const now = new Date().toISOString();
+  const username = currentUser || 'Staff';
+
+  // Update local state immediately
+  items.forEach(i => { i.onHand = '0'; i.updatedBy = username; i.updatedAt = now; });
   renderInventory();
   updateStats();
   renderOrder();
+  showSyncStatus('saving');
+
+  try {
+    // Delete all existing rows
+    await sbFetch('/rest/v1/inventory_counts?id=not.is.null', { method: 'DELETE' });
+
+    // Re-insert every item with on_hand '0' in batches of 50
+    const batchSize = 50;
+    for (let i = 0; i < items.length; i += batchSize) {
+      const batch = items.slice(i, i + batchSize).map(item => ({
+        id: item.id,
+        on_hand: '0',
+        updated_by: username,
+        updated_at: now
+      }));
+      await sbFetch('/rest/v1/inventory_counts', {
+        method: 'POST',
+        body: JSON.stringify(batch)
+      });
+    }
+    showSyncStatus('synced');
+  } catch(e) {
+    console.error('Reset failed:', e);
+    showSyncStatus('offline');
+  }
 }
 
 // ============================================================
