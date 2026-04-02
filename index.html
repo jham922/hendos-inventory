@@ -284,9 +284,64 @@
   .del-btn { padding:5px 12px;border:1px solid var(--border);background:transparent;color:var(--text-muted);border-radius:5px;cursor:pointer;font-size:11px;font-weight:600;margin-left:6px; }
   .del-btn:hover { border-color:var(--red);color:var(--red); }
 
+  /* CONFIRM MODAL */
+  .confirm-overlay {
+    display: none;
+    position: fixed; inset: 0; z-index: 9999;
+    background: rgba(0,0,0,0.72);
+    backdrop-filter: blur(3px);
+    align-items: center; justify-content: center;
+  }
+  .confirm-overlay.open { display: flex; }
+  .confirm-box {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 28px 24px 22px;
+    max-width: 320px; width: calc(100% - 40px);
+    box-shadow: 0 24px 60px rgba(0,0,0,0.6);
+    text-align: center;
+  }
+  .confirm-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 22px; letter-spacing: 2px;
+    color: var(--amber); margin-bottom: 10px;
+  }
+  .confirm-msg {
+    font-size: 14px; color: var(--text-muted);
+    line-height: 1.5; margin-bottom: 24px;
+  }
+  .confirm-btns { display: flex; gap: 10px; }
+  .confirm-btns button {
+    flex: 1; padding: 12px; border-radius: 8px;
+    font-size: 14px; font-weight: 600; cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    letter-spacing: 0.5px; border: 1px solid;
+    transition: opacity 0.15s;
+  }
+  .confirm-btns button:active { opacity: 0.75; }
+  .confirm-ok {
+    background: var(--red); border-color: var(--red); color: #fff;
+  }
+  .confirm-cancel {
+    background: transparent; border-color: var(--border); color: var(--text-muted);
+  }
+
 </style>
 </head>
 <body>
+
+<!-- Custom confirm modal -->
+<div class="confirm-overlay" id="confirmOverlay">
+  <div class="confirm-box">
+    <div class="confirm-title" id="confirmTitle">Confirm</div>
+    <div class="confirm-msg" id="confirmMsg"></div>
+    <div class="confirm-btns">
+      <button class="confirm-cancel" id="confirmCancel">Cancel</button>
+      <button class="confirm-ok" id="confirmOk">Reset</button>
+    </div>
+  </div>
+</div>
 
 <header>
   <div class="logo">
@@ -1208,8 +1263,20 @@ function dateStr() {
   return new Date().toISOString().slice(0,10);
 }
 
+function showConfirm(msg, onOk) {
+  document.getElementById('confirmMsg').textContent = msg;
+  const overlay = document.getElementById('confirmOverlay');
+  overlay.classList.add('open');
+  const ok = document.getElementById('confirmOk');
+  const cancel = document.getElementById('confirmCancel');
+  function close() { overlay.classList.remove('open'); ok.onclick = null; cancel.onclick = null; }
+  ok.onclick = () => { close(); onOk(); };
+  cancel.onclick = close;
+  overlay.onclick = e => { if (e.target === overlay) close(); };
+}
+
 async function clearAll() {
-  if (!confirm('Reset ALL on-hand counts to 0? This will update for everyone.')) return;
+  showConfirm('Reset ALL on-hand counts to 0? This will update for everyone.', async () => {
   showSyncStatus('saving');
 
   const now = new Date().toISOString();
@@ -1242,6 +1309,7 @@ async function clearAll() {
     console.error('Clear failed:', e);
     showSyncStatus('offline');
   }
+  });
 }
 
 // ============================================================
