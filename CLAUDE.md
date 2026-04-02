@@ -6,7 +6,7 @@ A single-file HTML inventory management app for the front-of-house at Hendo's Ba
 
 ## File Structure
 
-- `hendos-inventory/inventoryindex.html` — the entire app (HTML, CSS, and JS in one file)
+- `index.html` — the entire app (HTML, CSS, and JS in one file)
 
 ## App Sections (Tabs)
 

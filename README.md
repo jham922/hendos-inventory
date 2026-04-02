@@ -26,7 +26,7 @@ A mobile-first inventory management app for front-of-house bar staff. Used durin
 
 ## Usage
 
-Open `hendos-inventory/inventoryindex.html` directly in a browser — no server or build step required. Works best on mobile (Chrome/Safari). Add it to your home screen for a full-screen app experience.
+Open `index.html` directly in a browser — no server or build step required. Works best on mobile (Chrome/Safari). Add it to your home screen for a full-screen app experience.
 
 ## Tech
 
