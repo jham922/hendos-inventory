@@ -127,6 +127,7 @@
   }
   .qty-input:focus { outline: none; border-color: var(--amber); }
   .qty-input.has-value { border-color: var(--amber-dim); color: var(--amber); background: rgba(212,130,42,0.06); }
+.qty-input::placeholder { color: var(--text-muted); opacity: 1; }
 
   /* CONTROLS BAR */
   .controls { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
@@ -1042,7 +1043,7 @@ function renderInventory() {
               <div class="inv-card-right">
                 <input type="number" inputmode="decimal" class="qty-input ${item.onHand !== null ? 'has-value' : ''}"
                   value="${item.onHand !== null ? item.onHand : ''}"
-                  placeholder="—"
+                  placeholder="N/A"
                   onchange="handleCountInput(this,'${item.id}')"
                 >
                 <div class="inv-card-status">
@@ -1068,7 +1069,7 @@ function renderInventory() {
                   <td><span class="tag tag-${pu.tag}">${pu.label}</span></td>
                   <td><input type="number" inputmode="decimal" class="qty-input ${item.onHand !== null ? 'has-value' : ''}"
                     value="${item.onHand !== null ? item.onHand : ''}"
-                    placeholder="—"
+                    placeholder="N/A"
                     onchange="handleCountInput(this,'${item.id}')"
                   ></td>
                   <td>${statusBadge(status)}</td>
@@ -1276,15 +1277,13 @@ function showConfirm(msg, onOk) {
 }
 
 async function clearAll() {
-  showConfirm('Reset ALL on-hand counts to 0? This will update for everyone.', async () => {
+  showConfirm('Reset ALL on-hand counts to N/A? This will update for everyone.', async () => {
   showSyncStatus('saving');
 
-  const now = new Date().toISOString();
+  // Set all to null (N/A) locally
+  items.forEach(i => { i.onHand = null; });
 
-  // Set all to 0 locally
-  items.forEach(i => { i.onHand = 0; });
-
-  // Persist 0s to localStorage so a page refresh keeps them
+  // Persist nulls to localStorage so a page refresh keeps them
   localStorage.setItem('hendos_local', JSON.stringify(items.map(i => ({ id: i.id, onHand: i.onHand }))));
 
   renderInventory();
@@ -1292,17 +1291,11 @@ async function clearAll() {
   renderOrder();
 
   try {
-    // Batch upsert all items to 0 in Supabase (single request)
-    const payload = items.map(i => ({
-      id: i.id,
-      on_hand: 0,
-      updated_by: currentUser || 'reset',
-      updated_at: now
-    }));
-    await sbFetch('/rest/v1/inventory_counts', {
-      method: 'POST',
-      headers: { 'Prefer': 'resolution=merge-duplicates' },
-      body: JSON.stringify(payload)
+    // Patch all rows to on_hand: null so counts show as N/A (uncounted)
+    const now = new Date().toISOString();
+    await sbFetch('/rest/v1/inventory_counts?id=neq.none', {
+      method: 'PATCH',
+      body: JSON.stringify({ on_hand: null, updated_by: currentUser || 'reset', updated_at: now })
     });
     showSyncStatus('synced');
   } catch(e) {
