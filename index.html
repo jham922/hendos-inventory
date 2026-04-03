@@ -8,6 +8,7 @@
 <meta http-equiv="Expires" content="0">
 <title>Hendo's Barrel House — Inventory</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   :root {
     --bg: #0f0d0b;
@@ -285,6 +286,75 @@
   .del-btn { padding:5px 12px;border:1px solid var(--border);background:transparent;color:var(--text-muted);border-radius:5px;cursor:pointer;font-size:11px;font-weight:600;margin-left:6px; }
   .del-btn:hover { border-color:var(--red);color:var(--red); }
 
+  /* LOGIN SCREEN */
+  #loginScreen {
+    position: fixed; inset: 0; z-index: 10000;
+    background: var(--bg);
+    display: flex; align-items: center; justify-content: center;
+    padding: 24px;
+  }
+  #loginScreen.hidden { display: none; }
+  .login-box {
+    width: 100%; max-width: 380px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 36px 28px 32px;
+    box-shadow: 0 32px 80px rgba(0,0,0,0.6);
+  }
+  .login-logo-main {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 30px; letter-spacing: 3px;
+    color: var(--amber); text-align: center;
+    line-height: 1; margin-bottom: 4px;
+  }
+  .login-logo-sub {
+    font-size: 10px; letter-spacing: 2.5px;
+    text-transform: uppercase; color: var(--text-muted);
+    text-align: center; margin-bottom: 32px;
+  }
+  .login-label {
+    display: block; font-size: 11px; font-weight: 600;
+    letter-spacing: 1.5px; text-transform: uppercase;
+    color: var(--text-dim); margin-bottom: 6px;
+  }
+  .login-input {
+    width: 100%; background: var(--bg);
+    border: 1.5px solid var(--border);
+    color: var(--text); border-radius: 8px;
+    padding: 13px 14px; font-size: 16px;
+    font-family: 'DM Sans', sans-serif;
+    margin-bottom: 16px;
+    transition: border-color 0.2s;
+    -webkit-appearance: none;
+  }
+  .login-input:focus { outline: none; border-color: var(--amber); }
+  .login-btn {
+    width: 100%; padding: 15px;
+    background: var(--amber); border: none;
+    color: #0f0d0b; border-radius: 8px;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 18px; letter-spacing: 2px;
+    cursor: pointer; margin-top: 4px;
+    transition: opacity 0.15s;
+  }
+  .login-btn:active { opacity: 0.85; }
+  .login-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .login-error {
+    margin-top: 14px; font-size: 13px;
+    color: var(--red); text-align: center;
+    min-height: 20px; line-height: 1.4;
+  }
+  /* LOGOUT BUTTON */
+  .logout-btn {
+    background: transparent; border: 1px solid var(--border);
+    color: var(--text-muted); border-radius: 6px;
+    padding: 5px 12px; font-size: 12px; font-weight: 500;
+    cursor: pointer; transition: all 0.2s; white-space: nowrap;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .logout-btn:hover { border-color: var(--amber); color: var(--amber); }
+
   /* CONFIRM MODAL */
   .confirm-overlay {
     display: none;
@@ -332,6 +402,20 @@
 </head>
 <body>
 
+<!-- LOGIN SCREEN -->
+<div id="loginScreen">
+  <div class="login-box">
+    <div class="login-logo-main">Hendo's Barrel House</div>
+    <div class="login-logo-sub">Inventory System</div>
+    <label class="login-label" for="loginEmail">Email</label>
+    <input type="email" id="loginEmail" class="login-input" placeholder="you@hendosbarrelhouse.com" autocomplete="email" autocapitalize="none">
+    <label class="login-label" for="loginPassword">Password</label>
+    <input type="password" id="loginPassword" class="login-input" placeholder="Password" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+    <button class="login-btn" id="loginBtn" onclick="doLogin()">Sign In</button>
+    <div class="login-error" id="loginError"></div>
+  </div>
+</div>
+
 <!-- Custom confirm modal -->
 <div class="confirm-overlay" id="confirmOverlay">
   <div class="confirm-box">
@@ -349,7 +433,11 @@
     <span class="logo-main">Hendo's Barrel House</span>
     <span class="logo-sub">Inventory System</span>
   </div>
-  <span class="header-date" id="headerDate"></span><span id="syncStatus" style="font-family:'DM Mono',monospace;font-size:11px;margin-left:12px;color:var(--text-muted)">⟳ Loading...</span>
+  <div style="display:flex;align-items:center;gap:12px">
+    <span class="header-date" id="headerDate"></span>
+    <span id="syncStatus" style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text-muted)">⟳ Loading...</span>
+    <button class="logout-btn" onclick="doLogout()" id="logoutBtn" style="display:none">Sign Out</button>
+  </div>
 </header>
 
 <!-- DESKTOP TABS -->
@@ -437,19 +525,7 @@
 
 <!-- ===== ADMIN TAB ===== -->
 <div id="tab-admin" style="display:none">
-  <div id="adminLock">
-    <div style="max-width:360px;margin:60px auto;text-align:center">
-      <div style="font-size:48px;margin-bottom:16px">🔒</div>
-      <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:2px;color:var(--gold);margin-bottom:8px">Admin Access</div>
-      <div style="color:var(--text-muted);font-size:13px;margin-bottom:24px">Enter the admin password to manage products and pars</div>
-      <input type="password" id="adminPassInput" class="search-input" placeholder="Password" style="margin-bottom:12px;text-align:center;padding-left:14px" onkeydown="if(event.key==='Enter')checkAdminPass()">
-      <br>
-      <button class="action-btn" onclick="checkAdminPass()" style="margin-top:8px;width:100%;padding:14px">Unlock</button>
-      <div id="adminPassError" style="color:var(--red);font-size:12px;margin-top:10px"></div>
-    </div>
-  </div>
-
-  <div id="adminPanel" style="display:none">
+  <div id="adminPanel">
     <div class="controls">
       <button class="action-btn" onclick="showAddItem()">+ Add Item</button>
       <div class="search-wrap">
@@ -752,6 +828,13 @@ const DEFAULT_ITEMS = [
 const SUPABASE_URL = 'https://codzcyqavknpddhumtgx.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNvZHpjeXFhdmtucGRkaHVtdGd4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMzNDM2MzMsImV4cCI6MjA4ODkxOTYzM30.VUO1KiRpsdINRQCbAtvSRPmuKR2dAqbhkJqSPlAqB_8';
 
+// Supabase JS client (for Auth). sbFetch continues to use the anon key directly.
+// User roles are stored in user_metadata.role via the Supabase dashboard:
+//   Jennifer@hendosbarrelhouse.com  -> role: "admin"
+//   Daniel@hendosbarrelhouse.com    -> role: "manager"
+//   Andrew@hendosbarrelhouse.com    -> role: "manager"
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
 async function sbFetch(path, options = {}, retries = 3) {
   for (let attempt = 0; attempt < retries; attempt++) {
     try {
@@ -785,16 +868,9 @@ let activeFilters = { low: false, out: false };
 let activeCategory = 'all';
 let activeVendor = 'all';
 let toastData = null;
-let currentUser = localStorage.getItem('hendos_username') || null;
-
-function getUsername() {
-  if (currentUser) return currentUser;
-  let name = prompt('Enter your name so others can see who counted what:');
-  if (!name || !name.trim()) name = 'Unknown';
-  currentUser = name.trim();
-  localStorage.setItem('hendos_username', currentUser);
-  return currentUser;
-}
+let currentSession = null;  // Supabase session object
+let currentUser = null;     // authenticated user's email
+let userRole = 'readonly';  // 'admin' | 'manager' | 'readonly'
 
 async function loadState() {
   // DON'T reset items here - loadCustomItems already applied DB overrides on top of DEFAULT_ITEMS
@@ -874,14 +950,13 @@ function handleCountInput(el, id) {
 }
 
 async function updateItem(id, val) {
-  const username = getUsername();
   const item = items.find(i => i.id === id);
   if (item) {
     item.onHand = val === '' ? null : val;
-    item.updatedBy = username;
+    item.updatedBy = currentUser || 'unknown';
     item.updatedAt = new Date().toISOString();
     updateStats();
-    await saveItem(id, val === '' ? null : val, username);
+    await saveItem(id, val === '' ? null : val, currentUser || 'unknown');
   }
 }
 
@@ -1045,6 +1120,7 @@ function renderInventory() {
                   value="${item.onHand !== null ? item.onHand : ''}"
                   placeholder="N/A"
                   onchange="handleCountInput(this,'${item.id}')"
+                  ${userRole === 'readonly' ? 'disabled' : ''}
                 >
                 <div class="inv-card-status">
                   <span class="dot ${dotCls}"></span>
@@ -1071,6 +1147,7 @@ function renderInventory() {
                     value="${item.onHand !== null ? item.onHand : ''}"
                     placeholder="N/A"
                     onchange="handleCountInput(this,'${item.id}')"
+                    ${userRole === 'readonly' ? 'disabled' : ''}
                   ></td>
                   <td>${statusBadge(status)}</td>
                   <td>${stockBarHTML(item)}</td>
@@ -1323,19 +1400,6 @@ function showTab(id) {
 // ============================================================
 // ADMIN
 // ============================================================
-const ADMIN_PASSWORD = 'hendos2024';
-
-function checkAdminPass() {
-  const val = document.getElementById('adminPassInput').value;
-  if (val === ADMIN_PASSWORD) {
-    document.getElementById('adminLock').style.display = 'none';
-    document.getElementById('adminPanel').style.display = 'block';
-    renderAdminTable();
-  } else {
-    document.getElementById('adminPassError').textContent = 'Incorrect password';
-    document.getElementById('adminPassInput').value = '';
-  }
-}
 
 function renderAdminTable() {
   const search = document.getElementById('adminSearch').value.toLowerCase();
@@ -1475,16 +1539,98 @@ async function loadCustomItems() {
 }
 
 // ============================================================
+// AUTH
+// ============================================================
+
+async function doLogin() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  const errEl = document.getElementById('loginError');
+  const btn = document.getElementById('loginBtn');
+
+  errEl.textContent = '';
+  if (!email || !password) { errEl.textContent = 'Please enter your email and password.'; return; }
+
+  btn.disabled = true;
+  btn.textContent = 'Signing in...';
+
+  const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+
+  btn.disabled = false;
+  btn.textContent = 'Sign In';
+
+  if (error) {
+    errEl.textContent = error.message || 'Login failed. Check your email and password.';
+    return;
+  }
+
+  currentSession = data.session;
+  startApp(currentSession);
+}
+
+async function doLogout() {
+  await supabaseClient.auth.signOut();
+  currentSession = null;
+  currentUser = null;
+  userRole = 'readonly';
+  // Show login screen, hide app
+  document.getElementById('loginScreen').classList.remove('hidden');
+  document.getElementById('logoutBtn').style.display = 'none';
+  document.getElementById('loginEmail').value = '';
+  document.getElementById('loginPassword').value = '';
+  document.getElementById('loginError').textContent = '';
+}
+
+function applyRole(role) {
+  userRole = role;
+
+  // Admin tab visibility
+  const adminNavItem = document.getElementById('nav-admin');
+  const adminDesktopTab = document.getElementById('dtab-admin');
+  const showAdmin = (role === 'admin');
+  if (adminNavItem) adminNavItem.style.display = showAdmin ? '' : 'none';
+  if (adminDesktopTab) adminDesktopTab.style.display = showAdmin ? '' : 'none';
+
+  // Readonly: disable quantity inputs and hide action buttons
+  if (role === 'readonly') {
+    document.querySelectorAll('.qty-input').forEach(el => el.disabled = true);
+    document.querySelectorAll('.action-btn').forEach(el => el.style.display = 'none');
+  }
+}
+
+function startApp(session) {
+  currentSession = session;
+  currentUser = session.user.email;
+  const role = session.user.user_metadata?.role || 'readonly';
+
+  // Hide login, show app
+  document.getElementById('loginScreen').classList.add('hidden');
+  document.getElementById('logoutBtn').style.display = '';
+
+  applyRole(role);
+
+  // Initialize inventory data
+  document.getElementById('headerDate').textContent = new Date().toLocaleDateString('en-US', {weekday:'short', month:'short', day:'numeric', year:'numeric'});
+  items = DEFAULT_ITEMS.map(d => ({ ...d }));
+  renderCocktails();
+  (async () => {
+    await loadCustomItems();
+    await loadState();
+  })();
+}
+
+// ============================================================
 // INIT
 // ============================================================
-document.getElementById('headerDate').textContent = new Date().toLocaleDateString('en-US', {weekday:'short', month:'short', day:'numeric', year:'numeric'});
-// Build item list: start with defaults, then DB overrides, then on-hand counts
-items = DEFAULT_ITEMS.map(d => ({ ...d }));
-renderCocktails();
-// Load in sequence: custom item overrides first, then on-hand counts
+document.getElementById('headerDate').textContent = '';
+
+// Check for an existing valid session on page load
 (async () => {
-  await loadCustomItems();  // applies DB name/par/vendor overrides onto items
-  await loadState();        // applies on-hand counts (does NOT reset items)
+  const { data } = await supabaseClient.auth.getSession();
+  if (data.session) {
+    startApp(data.session);
+  }
+  // If no session, login screen remains visible (it's shown by default)
 })();
 </script>
 </body>
