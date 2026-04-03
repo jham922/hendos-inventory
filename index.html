@@ -1038,7 +1038,7 @@ function renderInventory() {
             <div class="inv-card">
               <div class="inv-card-info">
                 <div class="inv-card-name">${item.name}</div>
-                <div class="inv-card-par"><span class="tag tag-${pu.tag}">${pu.label}</span> ${vendorBadge(item.vendor)}${item.updatedBy ? ` <span style="font-size:10px;color:var(--text-dim)">by ${item.updatedBy}</span>` : ''}</div>
+                <div class="inv-card-par"><span class="tag tag-${pu.tag}">${pu.label}</span> ${vendorBadge(item.vendor)}</div>
               </div>
               <div class="inv-card-right">
                 <input type="number" inputmode="decimal" class="qty-input ${item.onHand !== null ? 'has-value' : ''}"
@@ -1064,7 +1064,7 @@ function renderInventory() {
                 const pu = parUnit(item.par);
                 const status = stockStatus(item);
                 return `<tr>
-                  <td style="font-weight:500">${item.name}${item.updatedBy ? `<div style="font-size:10px;color:var(--text-dim);margin-top:2px">by ${item.updatedBy}</div>` : ''}</td>
+                  <td style="font-weight:500">${item.name}</td>
                   <td>${vendorBadge(item.vendor)}</td>
                   <td><span class="tag tag-${pu.tag}">${pu.label}</span></td>
                   <td><input type="number" inputmode="decimal" class="qty-input ${item.onHand !== null ? 'has-value' : ''}"
