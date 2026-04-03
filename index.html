@@ -853,11 +853,13 @@ const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 async function sbFetch(path, options = {}, retries = 3) {
   for (let attempt = 0; attempt < retries; attempt++) {
     try {
+      // Use the logged-in user's JWT when available so RLS policies allow writes
+      const token = currentSession?.access_token || SUPABASE_KEY;
       const res = await fetch(SUPABASE_URL + path, {
         ...options,
         headers: {
           'apikey': SUPABASE_KEY,
-          'Authorization': 'Bearer ' + SUPABASE_KEY,
+          'Authorization': 'Bearer ' + token,
           'Content-Type': 'application/json',
           ...(options.headers || {})
         }
@@ -1029,7 +1031,7 @@ async function pollUpdates() {
     showSyncStatus('offline');
   }
 }
-setInterval(pollUpdates, 15000);
+// pollUpdates interval is started in startApp() after login
 
 // ============================================================
 // HELPERS
@@ -1655,6 +1657,9 @@ function startApp(session) {
   document.getElementById('logoutBtn').style.display = '';
 
   applyRole(role);
+
+  // Start polling now that we have an authenticated session
+  setInterval(pollUpdates, 15000);
 
   // Initialize inventory data
   document.getElementById('headerDate').textContent = new Date().toLocaleDateString('en-US', {weekday:'short', month:'short', day:'numeric', year:'numeric'});
