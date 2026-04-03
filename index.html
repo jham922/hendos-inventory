@@ -404,7 +404,8 @@
 
 <!-- LOGIN SCREEN -->
 <div id="loginScreen">
-  <div class="login-box">
+  <!-- Normal login form -->
+  <div class="login-box" id="loginForm">
     <div class="login-logo-main">Hendo's Barrel House</div>
     <div class="login-logo-sub">Inventory System</div>
     <label class="login-label" for="loginEmail">Email</label>
@@ -416,6 +417,17 @@
     <div style="margin-top:16px;text-align:center">
       <a href="#" onclick="doPasswordReset();return false;" style="color:var(--amber);font-size:13px;text-decoration:none;opacity:0.8">Forgot password?</a>
     </div>
+  </div>
+  <!-- Set new password form (shown when arriving via reset link) -->
+  <div class="login-box" id="resetForm" style="display:none">
+    <div class="login-logo-main">Hendo's Barrel House</div>
+    <div class="login-logo-sub">Set New Password</div>
+    <label class="login-label" for="newPassword">New Password</label>
+    <input type="password" id="newPassword" class="login-input" placeholder="New password" autocomplete="new-password" onkeydown="if(event.key==='Enter')doSetNewPassword()">
+    <label class="login-label" for="confirmPassword">Confirm Password</label>
+    <input type="password" id="confirmPassword" class="login-input" placeholder="Confirm password" autocomplete="new-password" onkeydown="if(event.key==='Enter')doSetNewPassword()">
+    <button class="login-btn" id="resetBtn" onclick="doSetNewPassword()">Set Password</button>
+    <div class="login-error" id="resetError"></div>
   </div>
 </div>
 
@@ -1571,6 +1583,29 @@ async function doLogin() {
   startApp(currentSession);
 }
 
+async function doSetNewPassword() {
+  const pw = document.getElementById('newPassword').value;
+  const pw2 = document.getElementById('confirmPassword').value;
+  const errEl = document.getElementById('resetError');
+  const btn = document.getElementById('resetBtn');
+  errEl.style.color = 'var(--red)';
+  if (!pw || pw.length < 6) { errEl.textContent = 'Password must be at least 6 characters.'; return; }
+  if (pw !== pw2) { errEl.textContent = 'Passwords do not match.'; return; }
+  btn.disabled = true; btn.textContent = 'Saving...';
+  const { error } = await supabaseClient.auth.updateUser({ password: pw });
+  btn.disabled = false; btn.textContent = 'Set Password';
+  if (error) { errEl.textContent = error.message; return; }
+  errEl.style.color = 'var(--green)';
+  errEl.textContent = 'Password updated! Signing you in...';
+  // Session is already active after updateUser — start the app
+  const { data } = await supabaseClient.auth.getSession();
+  if (data.session) {
+    document.getElementById('resetForm').style.display = 'none';
+    document.getElementById('loginForm').style.display = '';
+    startApp(data.session);
+  }
+}
+
 async function doPasswordReset() {
   const email = document.getElementById('loginEmail').value.trim();
   const errEl = document.getElementById('loginError');
@@ -1640,9 +1675,21 @@ document.getElementById('headerDate').textContent = '';
 (async () => {
   const { data } = await supabaseClient.auth.getSession();
   if (data.session) {
-    startApp(data.session);
+    if (data.session.user?.recovery_sent_at || data.session?.recovery) {
+      // Recovery session — show set-new-password form
+      document.getElementById('loginForm').style.display = 'none';
+      document.getElementById('resetForm').style.display = '';
+    } else {
+      startApp(data.session);
+    }
   }
-  // If no session, login screen remains visible (it's shown by default)
+  // Also listen for auth state changes (handles the recovery token in the URL hash)
+  supabaseClient.auth.onAuthStateChange((event, session) => {
+    if (event === 'PASSWORD_RECOVERY') {
+      document.getElementById('loginForm').style.display = 'none';
+      document.getElementById('resetForm').style.display = '';
+    }
+  });
 })();
 </script>
 </body>
