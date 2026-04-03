@@ -413,6 +413,9 @@
     <input type="password" id="loginPassword" class="login-input" placeholder="Password" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
     <button class="login-btn" id="loginBtn" onclick="doLogin()">Sign In</button>
     <div class="login-error" id="loginError"></div>
+    <div style="margin-top:16px;text-align:center">
+      <a href="#" onclick="doPasswordReset();return false;" style="color:var(--amber);font-size:13px;text-decoration:none;opacity:0.8">Forgot password?</a>
+    </div>
   </div>
 </div>
 
@@ -1566,6 +1569,15 @@ async function doLogin() {
 
   currentSession = data.session;
   startApp(currentSession);
+}
+
+async function doPasswordReset() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const errEl = document.getElementById('loginError');
+  if (!email) { errEl.style.color = 'var(--amber)'; errEl.textContent = 'Enter your email above, then click Forgot password.'; return; }
+  const { error } = await supabaseClient.auth.resetPasswordForEmail(email);
+  if (error) { errEl.style.color = 'var(--red)'; errEl.textContent = error.message; }
+  else { errEl.style.color = 'var(--green)'; errEl.textContent = 'Password reset email sent — check your inbox.'; }
 }
 
 async function doLogout() {
