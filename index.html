@@ -879,6 +879,7 @@ async function sbFetch(path, options = {}, retries = 3) {
 // STATE
 // ============================================================
 let items = [];
+let vendors = [];
 let activeFilters = { low: false, out: false };
 let activeCategory = 'all';
 let activeVendor = 'all';
@@ -1541,6 +1542,19 @@ async function deleteItem(id, name) {
   }
 }
 
+const FALLBACK_VENDORS = ['Southern', 'Gate City', 'Chef Orders'];
+
+async function loadVendors() {
+  try {
+    const rows = await sbFetch('/rest/v1/vendors?select=name&order=created_at.asc');
+    vendors = rows.map(r => r.name);
+    if (!vendors.length) vendors = [...FALLBACK_VENDORS];
+  } catch(e) {
+    console.warn('Could not load vendors, using fallback:', e);
+    vendors = [...FALLBACK_VENDORS];
+  }
+}
+
 // On load, also pull any custom items from Supabase inventory_items table
 async function loadCustomItems() {
   try {
@@ -1673,6 +1687,7 @@ function startApp(session) {
   items = DEFAULT_ITEMS.map(d => ({ ...d }));
   renderCocktails();
   (async () => {
+    await loadVendors();
     await loadCustomItems();
     await loadState();
   })();
