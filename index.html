@@ -1223,8 +1223,11 @@ function vendorBadge(vendor) {
 function renderOrder() {
   const dash = document.getElementById('orderDashboard');
   const needOrder = items.filter(i => {
-    const s = stockStatus(i);
-    return s === 'low' || s === 'out';
+    if (i.onHand === null) return false;
+    const parNum = parseFloat(i.par);
+    const onHandNum = parseFloat(i.onHand);
+    if (isNaN(parNum) || isNaN(onHandNum)) return false;
+    return onHandNum < parNum;
   });
 
   if (needOrder.length === 0) {
@@ -1261,7 +1264,7 @@ function renderOrder() {
           needed = Math.max(0, parNum - onHandNum).toFixed(1).replace(/\.0$/, '');
         }
         return `<div class="order-card">
-          <span class="badge badge-${status === 'out' ? 'out' : 'low'}" style="min-width:52px;text-align:center">${status === 'out' ? '🚨 OUT' : '⚠ LOW'}</span>
+          <span class="badge badge-${status === 'out' ? 'out' : status === 'low' ? 'low' : 'na'}" style="min-width:52px;text-align:center">${status === 'out' ? '🚨 OUT' : status === 'low' ? '⚠ LOW' : '📦 ORDER'}</span>
           <div style="flex:1;min-width:0">
             <div class="order-item-name">${item.name}</div>
             <div class="order-item-sub">${item.category} · Par: ${item.par} · On Hand: ${onH}</div>
