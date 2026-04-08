@@ -553,6 +553,23 @@
       </select>
     </div>
     <div id="adminTableWrap"></div>
+
+    <!-- VENDOR MANAGEMENT SECTION -->
+    <div style="margin-top:28px">
+      <div style="font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-dim);border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:12px">Vendors</div>
+      <div style="margin-bottom:10px">
+        <button class="action-btn" onclick="showAddVendorForm()" id="addVendorBtn" style="font-size:13px;padding:7px 16px">+ Add Vendor</button>
+      </div>
+      <div id="addVendorForm" style="display:none;margin-bottom:12px">
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <input type="text" id="newVendorInput" class="search-input" placeholder="Vendor name" style="padding-left:14px;max-width:240px" oninput="validateNewVendorInput()">
+          <button class="action-btn" id="saveNewVendorBtn" onclick="saveNewVendor()" style="font-size:13px;padding:7px 16px" disabled>Save</button>
+          <button class="filter-btn" onclick="hideAddVendorForm()" style="font-size:13px">Cancel</button>
+        </div>
+        <div id="addVendorError" style="color:var(--red);font-size:12px;margin-top:6px"></div>
+      </div>
+      <div id="vendorListWrap"></div>
+    </div>
   </div>
 
   <!-- ADD/EDIT MODAL -->
