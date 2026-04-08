@@ -1542,6 +1542,84 @@ async function saveNewVendor() {
   }
 }
 
+function showRenameVendorForm(index) {
+  // Hide any other open rename form first
+  vendors.forEach((_, i) => {
+    if (i !== index) hideRenameVendorForm(i);
+  });
+  document.getElementById('vendor-view-' + index).style.display = 'none';
+  document.getElementById('vendor-edit-' + index).style.display = 'flex';
+  document.getElementById('rename-error-' + index).textContent = '';
+  const input = document.getElementById('rename-input-' + index);
+  input.focus();
+  input.select();
+}
+
+function hideRenameVendorForm(index) {
+  const viewEl = document.getElementById('vendor-view-' + index);
+  const editEl = document.getElementById('vendor-edit-' + index);
+  if (!viewEl || !editEl) return;
+  viewEl.style.display = 'flex';
+  editEl.style.display = 'none';
+}
+
+function validateRenameInput(index) {
+  const val = document.getElementById('rename-input-' + index).value.trim();
+  document.getElementById('rename-save-btn-' + index).disabled = !val;
+  document.getElementById('rename-error-' + index).textContent = '';
+}
+
+async function saveRenameVendor(index, oldName) {
+  const newName = document.getElementById('rename-input-' + index).value.trim();
+  const errEl = document.getElementById('rename-error-' + index);
+  if (!newName) return;
+
+  if (newName === oldName) {
+    hideRenameVendorForm(index);
+    return;
+  }
+
+  if (vendors.map(v => v.toLowerCase()).includes(newName.toLowerCase())) {
+    errEl.textContent = 'A vendor with that name already exists';
+    return;
+  }
+
+  const btn = document.getElementById('rename-save-btn-' + index);
+  btn.disabled = true;
+  btn.textContent = 'Saving...';
+
+  try {
+    // 1. Rename in vendors table
+    await sbFetch('/rest/v1/vendors?name=eq.' + encodeURIComponent(oldName), {
+      method: 'PATCH',
+      headers: { 'Prefer': 'return=minimal' },
+      body: JSON.stringify({ name: newName })
+    });
+    // 2. Cascade to inventory_items
+    await sbFetch('/rest/v1/inventory_items?vendor=eq.' + encodeURIComponent(oldName), {
+      method: 'PATCH',
+      headers: { 'Prefer': 'return=minimal' },
+      body: JSON.stringify({ vendor: newName })
+    });
+    // 3. Update in-memory state
+    vendors[index] = newName;
+    items.forEach(item => {
+      if (item.vendor === oldName) item.vendor = newName;
+    });
+    // 4. If the active vendor filter was the old name, update it
+    if (activeVendor === oldName) activeVendor = newName;
+    // 5. Re-render
+    renderVendorChips();
+    renderVendorList();
+    renderAdminTable();
+    renderInventory();
+  } catch(e) {
+    errEl.textContent = 'Save failed: ' + e.message;
+    btn.disabled = false;
+    btn.textContent = 'Save';
+  }
+}
+
 function renderAdminTable() {
   const search = document.getElementById('adminSearch').value.toLowerCase();
   const cat = document.getElementById('adminCatFilter').value;
