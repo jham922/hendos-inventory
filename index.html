@@ -1093,9 +1093,14 @@ function renderVendorChips() {
 function populateVendorSelect(selectedValue) {
   const sel = document.getElementById('editVendor');
   if (!sel) return;
-  sel.innerHTML = vendors.map(v =>
-    `<option value="${v}"${v === selectedValue ? ' selected' : ''}>${v}</option>`
-  ).join('') + `<option value="—"${selectedValue === '—' ? ' selected' : ''}>Unassigned</option>`;
+  sel.innerHTML = '';
+  [...vendors, '—'].forEach(v => {
+    const opt = document.createElement('option');
+    opt.value = v;
+    opt.textContent = v === '—' ? 'Unassigned' : v;
+    if (v === selectedValue) opt.selected = true;
+    sel.appendChild(opt);
+  });
 }
 
 function setVendor(v) {
