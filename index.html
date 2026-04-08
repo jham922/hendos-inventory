@@ -1102,7 +1102,7 @@ function renderVendorChips() {
   const container = document.getElementById('vendorChips');
   if (!container) return;
   container.innerHTML = vendors.map(vn =>
-    `<div class="chip" id="chip-${CSS.escape(vn)}" data-vendor="${vn.replace(/"/g, '&quot;')}" onclick="setVendor(this.dataset.vendor)">${vn}</div>`
+    `<div class="chip" id="chip-${CSS.escape(vn)}" data-vendor="${vn.replace(/"/g, '&quot;')}" onclick="setVendor(this.dataset.vendor)">${escapeHtml(vn)}</div>`
   ).join('');
   // Restore active state if a vendor filter is set
   vendors.forEach(vn => {
@@ -1494,6 +1494,7 @@ function showAddVendorForm() {
   document.getElementById('newVendorInput').value = '';
   document.getElementById('addVendorError').textContent = '';
   document.getElementById('saveNewVendorBtn').disabled = true;
+  document.getElementById('saveNewVendorBtn').textContent = 'Save';
   document.getElementById('addVendorBtn').style.display = 'none';
   document.getElementById('newVendorInput').focus();
 }
