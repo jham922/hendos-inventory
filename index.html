@@ -1579,7 +1579,9 @@ async function saveRenameVendor(index, oldName) {
     return;
   }
 
-  if (vendors.map(v => v.toLowerCase()).includes(newName.toLowerCase())) {
+  // Only block duplicate if it's a different vendor (not just a casing change of the same vendor)
+  const isDifferentVendor = vendors.some((v, i) => i !== index && v.toLowerCase() === newName.toLowerCase());
+  if (isDifferentVendor) {
     errEl.textContent = 'A vendor with that name already exists';
     return;
   }
@@ -1588,6 +1590,7 @@ async function saveRenameVendor(index, oldName) {
   btn.disabled = true;
   btn.textContent = 'Saving...';
 
+  let vendorsPatched = false;
   try {
     // 1. Rename in vendors table
     await sbFetch('/rest/v1/vendors?name=eq.' + encodeURIComponent(oldName), {
@@ -1595,6 +1598,7 @@ async function saveRenameVendor(index, oldName) {
       headers: { 'Prefer': 'return=minimal' },
       body: JSON.stringify({ name: newName })
     });
+    vendorsPatched = true;
     // 2. Cascade to inventory_items
     await sbFetch('/rest/v1/inventory_items?vendor=eq.' + encodeURIComponent(oldName), {
       method: 'PATCH',
@@ -1613,8 +1617,23 @@ async function saveRenameVendor(index, oldName) {
     renderVendorList();
     renderAdminTable();
     renderInventory();
+    populateVendorSelect(document.getElementById('editVendor')?.value || vendors[0]);
   } catch(e) {
-    errEl.textContent = 'Save failed: ' + e.message;
+    if (vendorsPatched) {
+      // vendors table was renamed but items update failed — attempt to revert
+      try {
+        await sbFetch('/rest/v1/vendors?name=eq.' + encodeURIComponent(newName), {
+          method: 'PATCH',
+          headers: { 'Prefer': 'return=minimal' },
+          body: JSON.stringify({ name: oldName })
+        });
+        errEl.textContent = 'Save failed and was rolled back. Please try again.';
+      } catch(revertErr) {
+        errEl.textContent = 'Save partially failed — please reload the page to verify data.';
+      }
+    } else {
+      errEl.textContent = 'Save failed: ' + e.message;
+    }
     btn.disabled = false;
     btn.textContent = 'Save';
   }
