@@ -1102,7 +1102,7 @@ function renderVendorChips() {
   const container = document.getElementById('vendorChips');
   if (!container) return;
   container.innerHTML = vendors.map(vn =>
-    `<div class="chip" id="chip-${CSS.escape(vn)}" data-vendor="${vn.replace(/"/g, '&quot;')}" onclick="setVendor(this.dataset.vendor)">${escapeHtml(vn)}</div>`
+    `<div class="chip" id="chip-${CSS.escape(vn)}" data-vendor="${escapeHtml(vn)}" onclick="setVendor(this.dataset.vendor)">${escapeHtml(vn)}</div>`
   ).join('');
   // Restore active state if a vendor filter is set
   vendors.forEach(vn => {
@@ -1254,7 +1254,7 @@ function updateStats() {
 // ============================================================
 function vendorBadge(vendor) {
   if (!vendor || vendor === '—') return '<span class="vendor-none">—</span>';
-  return `<span class="vendor-badge">${vendor}</span>`;
+  return `<span class="vendor-badge">${escapeHtml(vendor)}</span>`;
 }
 
 function renderOrder() {
@@ -1277,7 +1277,7 @@ function renderOrder() {
     return;
   }
 
-  const VENDOR_ORDER = ['Southern', 'Gate City', 'Chef Orders', '—'];
+  const VENDOR_ORDER = [...vendors, '—'];
   const byVendor = {};
   VENDOR_ORDER.forEach(v => byVendor[v] = []);
   needOrder.forEach(i => {
@@ -1288,7 +1288,7 @@ function renderOrder() {
 
   dash.innerHTML = VENDOR_ORDER.map(vendor => {
     if (!byVendor[vendor] || !byVendor[vendor].length) return '';
-    const label = vendor === '—' ? 'Unassigned' : vendor;
+    const label = vendor === '—' ? 'Unassigned' : escapeHtml(vendor);
     return `<div class="order-section">
       <div class="order-section-title">${vendorBadge(vendor)} &nbsp;${label} <span style="font-size:11px;color:var(--text-dim)">(${byVendor[vendor].length} items)</span></div>
       ${byVendor[vendor].map(item => {
