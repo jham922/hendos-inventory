@@ -8,7 +8,7 @@ A mobile-first inventory management app for front-of-house bar staff. Used durin
 - **Order dashboard** — Auto-generates order lists for items below par, grouped by vendor; order quantity = par minus on-hand count
 - **Cocktail recipes** — Quick reference for ingredients and quantities
 - **Toast POS integration** — Upload a CSV export from Toast to cross-reference sales data
-- **Admin panel** — Password-protected item management: add/edit items, set par levels, assign vendors
+- **Admin panel** — Password-protected item management: add/edit items, set par levels, assign vendors; add new vendors and rename existing ones
 
 ## Categories
 
@@ -20,9 +20,13 @@ A mobile-first inventory management app for front-of-house bar staff. Used durin
 
 ## Vendors
 
+Vendors are managed dynamically in the Admin panel. Default vendors:
+
 - Southern
 - Gate City
 - Chef Orders
+
+Admins can add new vendors or rename existing ones. Renaming cascades to all items assigned to that vendor.
 
 ## Usage
 

@@ -14,7 +14,7 @@ A single-file HTML inventory management app for the front-of-house at Hendo's Ba
 - **Order Dashboard** — Auto-generates order list for items below par, grouped by vendor; exportable/printable
 - **Cocktails** — Cocktail recipes with ingredients and quantities
 - **Toast** — Upload a CSV export from Toast POS to cross-reference sales data
-- **Admin** — Password-protected; add/edit items, set par levels, assign vendors
+- **Admin** — Password-protected; add/edit items, set par levels, assign vendors; add new vendors and rename existing ones
 
 ## Categories
 
@@ -26,9 +26,13 @@ A single-file HTML inventory management app for the front-of-house at Hendo's Ba
 
 ## Vendors
 
+Stored dynamically in the `vendors` Supabase table. Default vendors:
+
 - Southern
 - Gate City
 - Chef Orders
+
+Admins can add new vendors or rename existing ones from the Admin tab. Renaming a vendor cascades to all assigned items in `inventory_items` and updates the in-memory `items` array immediately.
 
 ## Design
 
@@ -52,5 +56,6 @@ A single-file HTML inventory management app for the front-of-house at Hendo's Ba
 
 - Supabase (Postgres) stores live counts in the `inventory_counts` table (`id`, `on_hand`, `updated_by`, `updated_at`)
 - Supabase stores custom/admin-created items in the `inventory_items` table
+- Supabase stores vendors in the `vendors` table (`id`, `name`, `created_at`) — loaded on startup with fallback to hardcoded defaults if unavailable
 - localStorage is used as an offline fallback
 - The app polls Supabase every 15 seconds to sync counts from other users
