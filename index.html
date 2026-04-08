@@ -577,10 +577,6 @@
       <div style="margin-bottom:14px">
         <label style="font-size:11px;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase;display:block;margin-bottom:6px">Vendor</label>
         <select id="editVendor" class="filter-btn" style="width:100%;appearance:none;-webkit-appearance:none;background-color:var(--bg)">
-          <option value="Southern">Southern</option>
-          <option value="Gate City">Gate City</option>
-          <option value="Chef Orders">Chef Orders</option>
-          <option value="—">Unassigned</option>
         </select>
       </div>
       <div style="margin-bottom:20px">
@@ -1094,6 +1090,14 @@ function renderVendorChips() {
   });
 }
 
+function populateVendorSelect(selectedValue) {
+  const sel = document.getElementById('editVendor');
+  if (!sel) return;
+  sel.innerHTML = vendors.map(v =>
+    `<option value="${v}"${v === selectedValue ? ' selected' : ''}>${v}</option>`
+  ).join('') + `<option value="—"${selectedValue === '—' ? ' selected' : ''}>Unassigned</option>`;
+}
+
 function setVendor(v) {
   activeVendor = activeVendor === v ? 'all' : v;
   vendors.forEach(vn => {
@@ -1471,7 +1475,7 @@ function showAddItem() {
   document.getElementById('editItemId').value = '';
   document.getElementById('editName').value = '';
   document.getElementById('editCategory').value = 'Spirits';
-  document.getElementById('editVendor').value = 'Southern';
+  populateVendorSelect(vendors[0] || '—');
   document.getElementById('editPar').value = '';
   document.getElementById('modalError').textContent = '';
   document.getElementById('itemModal').style.display = 'flex';
@@ -1484,7 +1488,7 @@ function editItem(id) {
   document.getElementById('editItemId').value = id;
   document.getElementById('editName').value = item.name;
   document.getElementById('editCategory').value = item.category;
-  document.getElementById('editVendor').value = item.vendor || '—';
+  populateVendorSelect(item.vendor || '—');
   document.getElementById('editPar').value = item.par;
   document.getElementById('modalError').textContent = '';
   document.getElementById('itemModal').style.display = 'flex';
