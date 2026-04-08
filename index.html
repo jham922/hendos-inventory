@@ -1050,6 +1050,10 @@ async function pollUpdates() {
 // ============================================================
 // HELPERS
 // ============================================================
+function escapeHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
 function parUnit(par) {
   const p = par.toLowerCase();
   if (p.includes('keg')) return { tag: 'keg', label: '🛢 ' + par };
@@ -1465,22 +1469,24 @@ function renderVendorList() {
     wrap.innerHTML = '<div style="color:var(--text-dim);font-size:13px">No vendors found.</div>';
     return;
   }
-  wrap.innerHTML = vendors.map((v, i) => `
+  wrap.innerHTML = vendors.map((v, i) => {
+    const ve = escapeHtml(v);
+    return `
     <div class="vendor-mgmt-row" id="vendor-row-${i}" style="display:flex;align-items:center;justify-content:space-between;padding:9px 12px;border-bottom:1px solid var(--border);background:var(--surface);${i===0?'border-radius:8px 8px 0 0':''}${i===vendors.length-1?';border-radius:0 0 8px 8px;border-bottom:none':''}">
-      <span id="vendor-name-${i}" style="font-size:13px;font-weight:500">${v}</span>
+      <span id="vendor-name-${i}" style="font-size:13px;font-weight:500">${ve}</span>
       <div id="vendor-view-${i}" style="display:flex;gap:6px">
         <button class="edit-btn" onclick="showRenameVendorForm(${i})">Rename</button>
       </div>
       <div id="vendor-edit-${i}" style="display:none;flex:1;margin-left:12px">
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-          <input type="text" id="rename-input-${i}" class="search-input" value="${v}" style="padding-left:14px;max-width:200px" oninput="validateRenameInput(${i})">
-          <button class="action-btn" id="rename-save-btn-${i}" onclick="saveRenameVendor(${i}, '${v.replace(/'/g, "\\'")}')" style="font-size:12px;padding:6px 12px">Save</button>
+          <input type="text" id="rename-input-${i}" class="search-input" value="${ve}" data-vendor="${ve}" style="padding-left:14px;max-width:200px" oninput="validateRenameInput(${i})">
+          <button class="action-btn" id="rename-save-btn-${i}" data-old-vendor="${ve}" onclick="saveRenameVendor(${i}, this.dataset.oldVendor)" style="font-size:12px;padding:6px 12px">Save</button>
           <button class="filter-btn" onclick="hideRenameVendorForm(${i})" style="font-size:12px">Cancel</button>
         </div>
         <div id="rename-error-${i}" style="color:var(--red);font-size:12px;margin-top:6px"></div>
       </div>
     </div>
-  `).join('');
+  `}).join('');
 }
 
 function renderAdminTable() {
