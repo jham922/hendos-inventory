@@ -154,8 +154,9 @@
   }
 
   /* FILTER CHIPS ROW */
-  .chip-row { display: flex; gap: 8px; margin-bottom: 14px; overflow-x: auto; padding-bottom: 4px; -webkit-overflow-scrolling: touch; }
-  .chip { padding: 7px 14px; border-radius: 20px; border: 1px solid var(--border); background: var(--surface); color: var(--text-muted); font-size: 13px; font-weight: 500; cursor: pointer; white-space: nowrap; transition: all 0.15s; flex-shrink: 0; }
+  .chip-row { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; overflow-x: auto; padding-bottom: 4px; -webkit-overflow-scrolling: touch; }
+  .chip { display: inline-flex; align-items: center; justify-content: center; height: 34px; padding: 0 14px; border-radius: 20px; border: 1px solid var(--border); background: var(--surface); color: var(--text-muted); font-size: 13px; font-weight: 500; line-height: 1; cursor: pointer; white-space: nowrap; transition: all 0.15s; flex-shrink: 0; box-sizing: border-box; }
+  #vendorChips { display: contents; }
   .chip.active { border-color: var(--amber); background: var(--amber-glow); color: var(--amber); }
 
   /* TOAST UPLOAD */
@@ -496,13 +497,13 @@
   </div>
   <div class="chip-row">
     <div class="chip active" id="chip-all" onclick="setCategory('all')">All</div>
-    <div class="chip" id="chip-Spirits" onclick="setCategory('Spirits')">🥃 Spirits</div>
-    <div class="chip" id="chip-Beer/Wine" onclick="setCategory('Beer/Wine')">🍺 Beer/Wine</div>
-    <div class="chip" id="chip-Mixers/Garnishes" onclick="setCategory('Mixers/Garnishes')">🍋 Mixers</div>
-    <div class="chip" id="chip-Paper Goods" onclick="setCategory('Paper Goods')">📦 Paper</div>
-    <div class="chip" id="chip-FOH Supplies" onclick="setCategory('FOH Supplies')">🍽 FOH</div>
-    <div class="chip" id="chip-low" onclick="toggleFilter('low')">⚠️ Low</div>
-    <div class="chip" id="chip-out" onclick="toggleFilter('out')">🚨 Out</div>
+    <div class="chip" id="chip-Spirits" onclick="setCategory('Spirits')">Spirits</div>
+    <div class="chip" id="chip-Beer/Wine" onclick="setCategory('Beer/Wine')">Beer/Wine</div>
+    <div class="chip" id="chip-Mixers/Garnishes" onclick="setCategory('Mixers/Garnishes')">Mixers</div>
+    <div class="chip" id="chip-Paper Goods" onclick="setCategory('Paper Goods')">Paper</div>
+    <div class="chip" id="chip-FOH Supplies" onclick="setCategory('FOH Supplies')">FOH</div>
+    <div class="chip" id="chip-low" onclick="toggleFilter('low')">Low</div>
+    <div class="chip" id="chip-out" onclick="toggleFilter('out')">Out</div>
     <div id="vendorChips"></div>
   </div>
   <div id="inventoryPanels"></div>
