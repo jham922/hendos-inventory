@@ -1085,7 +1085,7 @@ function renderVendorChips() {
   const container = document.getElementById('vendorChips');
   if (!container) return;
   container.innerHTML = vendors.map(vn =>
-    `<div class="chip" id="chip-${CSS.escape(vn)}" onclick="setVendor('${vn.replace(/'/g, "\\'")}')">${vn}</div>`
+    `<div class="chip" id="chip-${CSS.escape(vn)}" data-vendor="${vn.replace(/"/g, '&quot;')}" onclick="setVendor(this.dataset.vendor)">${vn}</div>`
   ).join('');
   // Restore active state if a vendor filter is set
   vendors.forEach(vn => {
