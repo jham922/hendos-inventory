@@ -178,10 +178,8 @@
 
 
   /* VENDOR BADGES */
-  .vendor-southern { display:inline-block;padding:1px 7px;border-radius:3px;font-size:10px;font-weight:700;letter-spacing:0.5px;background:rgba(212,130,42,0.15);color:#d4822a; }
-  .vendor-gate { display:inline-block;padding:1px 7px;border-radius:3px;font-size:10px;font-weight:700;letter-spacing:0.5px;background:rgba(74,158,107,0.15);color:#4a9e6b; }
-  .vendor-chef { display:inline-block;padding:1px 7px;border-radius:3px;font-size:10px;font-weight:700;letter-spacing:0.5px;background:rgba(104,90,200,0.15);color:#a090e0; }
-  .vendor-none { display:inline-block;padding:1px 7px;border-radius:3px;font-size:10px;font-weight:700;letter-spacing:0.5px;background:rgba(90,82,73,0.15);color:#5a5249; }
+  .vendor-badge { display:inline-block;padding:1px 7px;border-radius:3px;font-size:10px;font-weight:700;letter-spacing:0.5px;background:rgba(212,130,42,0.15);color:#d4822a; }
+  .vendor-none  { display:inline-block;padding:1px 7px;border-radius:3px;font-size:10px;font-weight:700;letter-spacing:0.5px;background:rgba(90,82,73,0.15);color:#5a5249; }
 
   /* ORDER DASHBOARD */
   .order-section { margin-bottom: 20px; }
@@ -1215,10 +1213,7 @@ function updateStats() {
 // ============================================================
 function vendorBadge(vendor) {
   if (!vendor || vendor === '—') return '<span class="vendor-none">—</span>';
-  if (vendor === 'Southern') return '<span class="vendor-southern">Southern</span>';
-  if (vendor === 'Gate City') return '<span class="vendor-gate">Gate City</span>';
-  if (vendor === 'Chef Orders') return '<span class="vendor-chef">Chef Orders</span>';
-  return `<span class="vendor-none">${vendor}</span>`;
+  return `<span class="vendor-badge">${vendor}</span>`;
 }
 
 function renderOrder() {
