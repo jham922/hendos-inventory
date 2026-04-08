@@ -503,9 +503,7 @@
     <div class="chip" id="chip-FOH Supplies" onclick="setCategory('FOH Supplies')">🍽 FOH</div>
     <div class="chip" id="chip-low" onclick="toggleFilter('low')">⚠️ Low</div>
     <div class="chip" id="chip-out" onclick="toggleFilter('out')">🚨 Out</div>
-    <div class="chip" id="chip-Southern" onclick="setVendor('Southern')">🟠 Southern</div>
-    <div class="chip" id="chip-Gate City" onclick="setVendor('Gate City')">🟢 Gate City</div>
-    <div class="chip" id="chip-Chef Orders" onclick="setVendor('Chef Orders')">🟣 Chef Orders</div>
+    <div id="vendorChips"></div>
   </div>
   <div id="inventoryPanels"></div>
 </div>
@@ -1083,10 +1081,23 @@ function stockBarHTML(item) {
 // ============================================================
 // RENDER INVENTORY
 // ============================================================
+function renderVendorChips() {
+  const container = document.getElementById('vendorChips');
+  if (!container) return;
+  container.innerHTML = vendors.map(vn =>
+    `<div class="chip" id="chip-${CSS.escape(vn)}" onclick="setVendor('${vn.replace(/'/g, "\\'")}')">${vn}</div>`
+  ).join('');
+  // Restore active state if a vendor filter is set
+  vendors.forEach(vn => {
+    const c = document.getElementById('chip-' + CSS.escape(vn));
+    if (c) c.classList.toggle('active', activeVendor === vn);
+  });
+}
+
 function setVendor(v) {
   activeVendor = activeVendor === v ? 'all' : v;
-  ['Southern','Gate City','Chef Orders'].forEach(vn => {
-    const c = document.getElementById('chip-' + vn);
+  vendors.forEach(vn => {
+    const c = document.getElementById('chip-' + CSS.escape(vn));
     if (c) c.classList.toggle('active', activeVendor === vn);
   });
   renderInventory();
@@ -1548,6 +1559,7 @@ async function loadVendors() {
     console.warn('Could not load vendors, using fallback:', e);
     vendors = [...FALLBACK_VENDORS];
   }
+  renderVendorChips();
 }
 
 // On load, also pull any custom items from Supabase inventory_items table
