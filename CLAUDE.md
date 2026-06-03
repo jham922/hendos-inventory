@@ -51,6 +51,7 @@ Admins can add new vendors or rename existing ones from the Admin tab. Renaming 
 - Order quantity = par − on-hand; only items with Low or Out status appear on Order Dashboard
 - Stock bar visually represents how full stock is relative to par
 - "Reset Counts" patches all on-hand values to null (N/A) in Supabase and localStorage
+- Items are sorted alphabetically within each category at render time (via `localeCompare` in `renderInventory()` and `renderAdminTable()`); this is independent of Supabase insertion order
 
 ## Backend
 

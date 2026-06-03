@@ -4,7 +4,7 @@ A mobile-first inventory management app for front-of-house bar staff. Used durin
 
 ## Features
 
-- **Inventory counting** — Count stock across all categories with real-time OK / Low / Out status; uncounted items show N/A (entering 0 means zero bottles on hand); Reset Counts clears all items back to N/A
+- **Inventory counting** — Count stock across all categories with real-time OK / Low / Out status; items display alphabetically within each category; uncounted items show N/A (entering 0 means zero bottles on hand); Reset Counts clears all items back to N/A
 - **Order dashboard** — Auto-generates order lists for items below par, grouped by vendor; order quantity = par minus on-hand count
 - **Cocktail recipes** — Quick reference for ingredients and quantities
 - **Toast POS integration** — Upload a CSV export from Toast to cross-reference sales data
