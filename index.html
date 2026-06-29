@@ -1848,7 +1848,9 @@ async function doPasswordReset() {
   const email = document.getElementById('loginEmail').value.trim();
   const errEl = document.getElementById('loginError');
   if (!email) { errEl.style.color = 'var(--amber)'; errEl.textContent = 'Enter your email above, then click Forgot password.'; return; }
-  const { error } = await supabaseClient.auth.resetPasswordForEmail(email);
+  const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
+    redirectTo: 'https://jham922.github.io/hendos-inventory/index.html'
+  });
   if (error) { errEl.style.color = 'var(--red)'; errEl.textContent = error.message; }
   else { errEl.style.color = 'var(--green)'; errEl.textContent = 'Password reset email sent — check your inbox.'; }
 }
