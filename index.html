@@ -460,6 +460,7 @@
   <div class="tab" onclick="showTab('order')" id="dtab-order">🛒 Order Dashboard</div>
   <div class="tab" onclick="showTab('cocktails')" id="dtab-cocktails">🍹 Cocktail Builds</div>
   <div class="tab" onclick="showTab('toast')" id="dtab-toast">📊 Toast POS</div>
+  <div class="tab" onclick="showTab('history')" id="dtab-history">🕘 History</div>
   <div class="tab" onclick="showTab('admin')" id="dtab-admin">⚙️ Admin</div>
 </div>
 
@@ -476,6 +477,9 @@
   </button>
   <button class="nav-item" onclick="showTab('toast')" id="nav-toast">
     <span class="nav-icon">📊</span>Toast
+  </button>
+  <button class="nav-item" onclick="showTab('history')" id="nav-history">
+    <span class="nav-icon">🕘</span>History
   </button>
   <button class="nav-item" onclick="showTab('admin')" id="nav-admin">
     <span class="nav-icon">⚙️</span>Admin
@@ -534,6 +538,13 @@
   <div id="toastResults"></div>
 </div>
 
+<!-- ===== HISTORY TAB ===== -->
+<div id="tab-history" style="display:none">
+  <div class="controls">
+    <h3 style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:2px;color:var(--gold);margin:0">Toast Upload History</h3>
+  </div>
+  <div id="historyList"></div>
+</div>
 
 <!-- ===== ADMIN TAB ===== -->
 <div id="tab-admin" style="display:none">
@@ -1452,9 +1463,7 @@ function exportTheoreticalUsageCSV() {
   downloadCSV(rows, 'hendos_theoretical_usage_' + dateStr() + '.csv');
 }
 
-function renderToastResults(result) {
-  const el = document.getElementById('toastResults');
-  const { usage, unmatchedIngredients, unmatchedRows } = result;
+function renderUsageSections(usage, draftOzUsed) {
   const spirits = usage.filter(u => u.kind === 'spirit').sort((a, b) => b.oz - a.oz);
   const wines = usage.filter(u => u.kind === 'wine').sort((a, b) => b.glasses - a.glasses);
   const keggedWines = usage.filter(u => u.kind === 'wine_keg').sort((a, b) => b.oz - a.oz);
@@ -1472,6 +1481,33 @@ function renderToastResults(result) {
     </div>`;
   }
 
+  return `
+    ${section('Spirits — Theoretical Usage', spirits, u => `<tr><td>${escapeHtml(u.item.name)}</td><td>${fmtNum(u.oz, 1)} oz</td><td>${fmtNum(u.oz / BOTTLE_OZ, 2)}</td></tr>`)}
+    ${section('Wine — Theoretical Usage', wines, u => `<tr><td>${escapeHtml(u.item.name)}</td><td>${fmtNum(u.glasses, 0)} glasses</td><td>${fmtNum(u.glasses / WINE_GLASSES_PER_BOTTLE, 2)}</td></tr>`)}
+    ${section(`Kegged Wine — Theoretical Usage (${WINE_KEG_POUR_OZ}oz pours)`, keggedWines, u => `<tr><td>${escapeHtml(u.item.name)}</td><td>${fmtNum(u.oz, 1)} oz</td><td>—</td></tr>`)}
+    ${section(`Draft Beer — Theoretical Usage (${draftOzUsed}oz pours)`, draft, u => `<tr><td>${escapeHtml(u.item.name)}</td><td>${fmtNum(u.oz, 0)} oz</td><td>—</td></tr>`)}
+    ${section('Bottled/Canned Beer &amp; Seltzer — Units Sold', bottled, u => `<tr><td>${escapeHtml(u.item.name)}</td><td>${fmtNum(u.units, 0)} units</td><td>—</td></tr>`)}
+  `;
+}
+
+function renderUnmatchedPanel(unmatchedRows, unmatchedIngredients) {
+  const unmatchedCount = unmatchedRows.length + unmatchedIngredients.length;
+  if (unmatchedCount === 0) return '';
+  return `<div class="panel collapsed">
+    <div class="panel-header" onclick="togglePanel(this)"><h3>Unmatched (${unmatchedCount})</h3><span class="panel-toggle">▾</span></div>
+    <div class="panel-body">
+      ${unmatchedRows.length ? `<div style="padding:12px 16px;font-size:12px;color:var(--text-muted)">Toast menu items not found in Cocktails or inventory — check spelling/naming:</div>
+      <table class="inv-table"><tbody>${unmatchedRows.map(r => `<tr><td>${escapeHtml(r.menuItem)}</td><td>${r.qtySold} sold</td></tr>`).join('')}</tbody></table>` : ''}
+      ${unmatchedIngredients.length ? `<div style="padding:12px 16px;font-size:12px;color:var(--text-muted)">Cocktail ingredients not found in inventory:</div>
+      <table class="inv-table"><tbody>${unmatchedIngredients.map(i => `<tr><td>${escapeHtml(i)}</td></tr>`).join('')}</tbody></table>` : ''}
+    </div>
+  </div>`;
+}
+
+function renderToastResults(result) {
+  const el = document.getElementById('toastResults');
+  const { usage, unmatchedIngredients, unmatchedRows } = result;
+
   const rawPreview = `<div class="panel collapsed">
     <div class="panel-header" onclick="togglePanel(this)"><h3>Imported Sales Data (${toastData.rawRows.length} rows)</h3><span class="panel-toggle">▾</span></div>
     <div class="panel-body">
@@ -1483,14 +1519,21 @@ function renderToastResults(result) {
     </div>
   </div>`;
 
-  const unmatchedCount = unmatchedRows.length + unmatchedIngredients.length;
-  const unmatchedPanel = unmatchedCount === 0 ? '' : `<div class="panel collapsed">
-    <div class="panel-header" onclick="togglePanel(this)"><h3>Unmatched (${unmatchedCount})</h3><span class="panel-toggle">▾</span></div>
-    <div class="panel-body">
-      ${unmatchedRows.length ? `<div style="padding:12px 16px;font-size:12px;color:var(--text-muted)">Toast menu items not found in Cocktails or inventory — check spelling/naming:</div>
-      <table class="inv-table"><tbody>${unmatchedRows.map(r => `<tr><td>${escapeHtml(r.menuItem)}</td><td>${r.qtySold} sold</td></tr>`).join('')}</tbody></table>` : ''}
-      ${unmatchedIngredients.length ? `<div style="padding:12px 16px;font-size:12px;color:var(--text-muted)">Cocktail ingredients not found in inventory:</div>
-      <table class="inv-table"><tbody>${unmatchedIngredients.map(i => `<tr><td>${escapeHtml(i)}</td></tr>`).join('')}</tbody></table>` : ''}
+  const unmatchedPanel = renderUnmatchedPanel(unmatchedRows, unmatchedIngredients);
+
+  const today = dateStr();
+  const weekAgo = new Date(Date.now() - 6 * 86400000).toISOString().slice(0, 10);
+  const saveBlock = usage.length === 0 ? '' : `<div class="panel">
+    <div class="panel-header"><h3>Save to History</h3></div>
+    <div class="panel-body" style="padding:16px">
+      <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-bottom:12px">
+        <div><label style="display:block;color:var(--text-muted);font-size:11px;margin-bottom:4px">Date Range Start</label>
+        <input type="date" id="historyDateStart" value="${weekAgo}" style="background:var(--surface2);border:1px solid var(--border);color:#fff;border-radius:6px;padding:8px"></div>
+        <div><label style="display:block;color:var(--text-muted);font-size:11px;margin-bottom:4px">Date Range End</label>
+        <input type="date" id="historyDateEnd" value="${today}" style="background:var(--surface2);border:1px solid var(--border);color:#fff;border-radius:6px;padding:8px"></div>
+        <button class="action-btn" onclick="saveToastToHistory()">💾 Save to History</button>
+      </div>
+      <div id="saveHistoryStatus" style="font-size:12px;color:var(--text-muted)"></div>
     </div>
   </div>`;
 
@@ -1500,15 +1543,100 @@ function renderToastResults(result) {
       <div class="chip ${draftPourOz === 16 ? 'active' : ''}" onclick="setDraftPourOz(16)">16oz</div>
       <div class="chip ${draftPourOz === 20 ? 'active' : ''}" onclick="setDraftPourOz(20)">20oz</div>
     </div>
-    ${section('Spirits — Theoretical Usage', spirits, u => `<tr><td>${escapeHtml(u.item.name)}</td><td>${fmtNum(u.oz, 1)} oz</td><td>${fmtNum(u.oz / BOTTLE_OZ, 2)}</td></tr>`)}
-    ${section('Wine — Theoretical Usage', wines, u => `<tr><td>${escapeHtml(u.item.name)}</td><td>${fmtNum(u.glasses, 0)} glasses</td><td>${fmtNum(u.glasses / WINE_GLASSES_PER_BOTTLE, 2)}</td></tr>`)}
-    ${section(`Kegged Wine — Theoretical Usage (${WINE_KEG_POUR_OZ}oz pours)`, keggedWines, u => `<tr><td>${escapeHtml(u.item.name)}</td><td>${fmtNum(u.oz, 1)} oz</td><td>—</td></tr>`)}
-    ${section(`Draft Beer — Theoretical Usage (${draftPourOz}oz pours)`, draft, u => `<tr><td>${escapeHtml(u.item.name)}</td><td>${fmtNum(u.oz, 0)} oz</td><td>—</td></tr>`)}
-    ${section('Bottled/Canned Beer &amp; Seltzer — Units Sold', bottled, u => `<tr><td>${escapeHtml(u.item.name)}</td><td>${fmtNum(u.units, 0)} units</td><td>—</td></tr>`)}
+    ${renderUsageSections(usage, draftPourOz)}
     ${usage.length === 0 ? `<div class="empty-state"><div class="es-title">No matches found</div><div>None of the rows in this file matched a cocktail or inventory item name.</div></div>` : `<button class="action-btn" style="margin-top:4px;margin-bottom:12px" onclick="exportTheoreticalUsageCSV()">📥 Export Theoretical Usage CSV</button>`}
     ${unmatchedPanel}
+    ${saveBlock}
     ${rawPreview}
   `;
+}
+
+async function saveToastToHistory() {
+  if (!toastData) return;
+  const status = document.getElementById('saveHistoryStatus');
+  const dateStart = document.getElementById('historyDateStart').value || null;
+  const dateEnd = document.getElementById('historyDateEnd').value || null;
+  status.textContent = 'Saving...';
+  status.style.color = 'var(--text-muted)';
+  try {
+    const result = computeTheoreticalUsage(toastData.sales, draftPourOz);
+    await sbFetch('/rest/v1/toast_uploads', {
+      method: 'POST',
+      body: JSON.stringify({
+        date_range_start: dateStart,
+        date_range_end: dateEnd,
+        file_name: toastData.fileName || null,
+        row_count: toastData.rawRows.length,
+        draft_pour_oz: draftPourOz,
+        usage: result.usage,
+        unmatched_rows: result.unmatchedRows,
+        unmatched_ingredients: result.unmatchedIngredients,
+        uploaded_by: currentUser || null,
+      })
+    });
+    status.textContent = '✓ Saved to History';
+    status.style.color = 'var(--green)';
+  } catch (e) {
+    console.error('Save to history failed:', e);
+    status.textContent = 'Failed to save: ' + e.message;
+    status.style.color = 'var(--red)';
+  }
+}
+
+// ============================================================
+// TOAST HISTORY
+// ============================================================
+async function loadToastHistory() {
+  const el = document.getElementById('historyList');
+  el.innerHTML = '<div style="padding:20px;color:var(--text-muted)">Loading...</div>';
+  try {
+    const rows = await sbFetch('/rest/v1/toast_uploads?select=*&order=uploaded_at.desc&limit=50');
+    if (!rows || rows.length === 0) {
+      el.innerHTML = `<div class="empty-state"><div class="es-title">No history yet</div><div>Uploads you save from the Toast tab will appear here.</div></div>`;
+      return;
+    }
+    el.innerHTML = rows.map(renderHistoryEntry).join('');
+  } catch (e) {
+    console.error('Load history failed:', e);
+    el.innerHTML = `<div class="empty-state"><div class="es-title">Couldn't load history</div><div>${escapeHtml(e.message)}</div></div>`;
+  }
+}
+
+function renderHistoryEntry(row) {
+  const usage = row.usage || [];
+  const unmatchedRows = row.unmatched_rows || [];
+  const unmatchedIngredients = row.unmatched_ingredients || [];
+  const rangeLabel = (row.date_range_start && row.date_range_end)
+    ? `${row.date_range_start} → ${row.date_range_end}`
+    : 'No date range set';
+  const uploadedAt = row.uploaded_at ? new Date(row.uploaded_at).toLocaleString() : '';
+  const meta = `${row.row_count || 0} rows${row.file_name ? ' · ' + escapeHtml(row.file_name) : ''} · uploaded ${escapeHtml(uploadedAt)}${row.uploaded_by ? ' by ' + escapeHtml(row.uploaded_by) : ''}`;
+
+  return `<div class="panel collapsed">
+    <div class="panel-header" onclick="togglePanel(this)">
+      <div>
+        <h3 style="margin-bottom:2px">${escapeHtml(rangeLabel)}</h3>
+        <div style="font-size:11px;color:var(--text-muted);font-weight:400;letter-spacing:0">${meta}</div>
+      </div>
+      <span class="panel-toggle">▾</span>
+    </div>
+    <div class="panel-body" style="padding:12px">
+      ${renderUsageSections(usage, row.draft_pour_oz || 16)}
+      ${renderUnmatchedPanel(unmatchedRows, unmatchedIngredients)}
+      <button class="action-btn" style="border-color:var(--red);color:var(--red);margin-top:8px" onclick="deleteHistoryEntry('${row.id}')">🗑 Delete</button>
+    </div>
+  </div>`;
+}
+
+function deleteHistoryEntry(id) {
+  showConfirm('Delete this history entry? This cannot be undone.', async () => {
+    try {
+      await sbFetch('/rest/v1/toast_uploads?id=eq.' + encodeURIComponent(id), { method: 'DELETE' });
+      loadToastHistory();
+    } catch (e) {
+      alert('Failed to delete: ' + e.message);
+    }
+  });
 }
 
 // ============================================================
@@ -1586,7 +1714,7 @@ function parseCSV(file) {
       .map(r => ({ menuItem: (r[nameIdx] || '').trim(), qtySold: parseInt(r[qtyIdx], 10) || 0 }))
       .filter(s => s.menuItem && s.qtySold > 0);
 
-    toastData = { sales, rawHeaders: rows[0], rawRows: dataRows };
+    toastData = { sales, rawHeaders: rows[0], rawRows: dataRows, fileName: file.name };
     renderToastResults(computeTheoreticalUsage(sales, draftPourOz));
   };
   reader.readAsText(file);
@@ -1668,7 +1796,7 @@ async function clearAll() {
 // TABS
 // ============================================================
 function showTab(id) {
-  ['inventory','order','cocktails','toast','admin'].forEach(t => {
+  ['inventory','order','cocktails','toast','history','admin'].forEach(t => {
     document.getElementById('tab-' + t).style.display = t === id ? '' : 'none';
     const mob = document.getElementById('nav-' + t);
     if (mob) mob.classList.toggle('active', t === id);
@@ -1676,6 +1804,7 @@ function showTab(id) {
     if (desk) desk.classList.toggle('active', t === id);
   });
   if (id === 'order') renderOrder();
+  if (id === 'history') loadToastHistory();
 }
 
 
