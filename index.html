@@ -892,7 +892,8 @@ let vendors = [];
 let activeFilters = { low: false, out: false };
 let activeCategory = 'all';
 let activeVendor = 'all';
-let toastData = null;
+let toastData = null; // { sales, rawHeaders, rawRows } from the last parsed Toast CSV
+let draftPourOz = parseInt(localStorage.getItem('hendos_draft_pour_oz'), 10) || 16;
 let currentSession = null;  // Supabase session object
 let currentUser = null;     // authenticated user's email
 let userRole = 'readonly';  // 'admin' | 'manager' | 'readonly'
@@ -1330,6 +1331,187 @@ function renderCocktails() {
 }
 
 // ============================================================
+// THEORETICAL USAGE (Toast sales -> liquor/wine/beer usage)
+// ============================================================
+const LIQUOR_POUR_OZ = 1.5;
+const WINE_GLASSES_PER_BOTTLE = 4;
+const WINE_KEG_POUR_OZ = 6; // kegged wine (e.g. sangria on tap) pours by the oz, not by the bottle
+const BOTTLE_OZ = 25.36; // standard 750ml bottle, used only for the "≈ bottles" display column
+
+// Item names/cocktail names are matched against Toast menu item text loosely —
+// Toast exports don't carry any ID linking sales rows back to this app's items or cocktails.
+function normalizeName(s) {
+  return (s || '')
+    .toLowerCase()
+    .replace(/[®™'’.,()]/g, '')
+    .replace(/\b(draft|glass|bottle|btl|can|neat|rocks|single|double|shot|pour|of)\b/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function parseQtyOz(qtyStr) {
+  const m = /^([\d.]+)\s*oz$/i.exec((qtyStr || '').trim());
+  return m ? parseFloat(m[1]) : null;
+}
+
+// Beer/Wine is a single category in this app's data model, so wine vs. beer (and
+// draft vs. bottled beer) has to be inferred from the item's id prefix / par text / name —
+// see parUnit() above, which already uses the same "keg" convention for icons.
+function classifyItem(item) {
+  if (item.category === 'Spirits') return 'spirit';
+  if (item.category !== 'Beer/Wine') return 'other';
+  const name = item.name.toLowerCase();
+  const isWine = item.id.startsWith('w') || /wine|cabernet|chardonnay|merlot|pinot|sauvignon|riesling|ros[ée]|sangria|champagne|prosecco|cava|sparkling|syrah|vermentino|moet|veuve/.test(name);
+  const isKegged = (item.par || '').toLowerCase().includes('keg');
+  if (isWine) return isKegged ? 'wine_keg' : 'wine';
+  const isDraft = isKegged || /\bdraft\b/.test(name);
+  return isDraft ? 'draft_beer' : 'bottled_beer';
+}
+
+function findItemMatch(normName) {
+  let match = items.find(i => normalizeName(i.name) === normName);
+  if (match) return match;
+  const candidates = items.filter(i => {
+    const n = normalizeName(i.name);
+    return n.length > 2 && (normName.includes(n) || n.includes(normName));
+  });
+  if (candidates.length === 0) return null;
+  candidates.sort((a, b) => normalizeName(b.name).length - normalizeName(a.name).length);
+  return candidates[0];
+}
+
+function findCocktailMatch(normName) {
+  return COCKTAILS.find(c => normalizeName(c.name) === normName) || null;
+}
+
+// Returns { usage: [{item, kind, oz, glasses, units}], unmatchedIngredients: [names], unmatchedRows: [{menuItem,qtySold}] }
+function computeTheoreticalUsage(sales, draftOz) {
+  const usage = {};
+  const unmatchedIngredients = new Set();
+  const unmatchedRows = [];
+
+  function bump(item, kind, field, amount) {
+    if (!usage[item.id]) usage[item.id] = { item, kind, oz: 0, glasses: 0, units: 0 };
+    usage[item.id][field] += amount;
+  }
+
+  sales.forEach(({ menuItem, qtySold }) => {
+    const normName = normalizeName(menuItem);
+    if (!normName || !qtySold) return;
+
+    const cocktail = findCocktailMatch(normName);
+    if (cocktail) {
+      cocktail.ingredients.forEach(ing => {
+        const oz = parseQtyOz(ing.qty);
+        if (oz == null) return; // non-liquid garnish (dashes, slices, "top", etc.) — not tracked
+        const item = findItemMatch(normalizeName(ing.ing));
+        if (!item) { unmatchedIngredients.add(ing.ing); return; }
+        bump(item, classifyItem(item), 'oz', qtySold * oz);
+      });
+      return;
+    }
+
+    const item = findItemMatch(normName);
+    if (item) {
+      const kind = classifyItem(item);
+      if (kind === 'spirit') bump(item, kind, 'oz', qtySold * LIQUOR_POUR_OZ);
+      else if (kind === 'wine') bump(item, kind, 'glasses', qtySold);
+      else if (kind === 'wine_keg') bump(item, kind, 'oz', qtySold * WINE_KEG_POUR_OZ);
+      else if (kind === 'draft_beer') bump(item, kind, 'oz', qtySold * draftOz);
+      else if (kind === 'bottled_beer') bump(item, kind, 'units', qtySold);
+      return;
+    }
+
+    unmatchedRows.push({ menuItem, qtySold });
+  });
+
+  return { usage: Object.values(usage), unmatchedIngredients: Array.from(unmatchedIngredients), unmatchedRows };
+}
+
+function fmtNum(n, decimals) {
+  return n.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+}
+
+function setDraftPourOz(oz) {
+  draftPourOz = oz;
+  localStorage.setItem('hendos_draft_pour_oz', String(oz));
+  if (toastData) renderToastResults(computeTheoreticalUsage(toastData.sales, draftPourOz));
+}
+
+function exportTheoreticalUsageCSV() {
+  if (!toastData) return;
+  const result = computeTheoreticalUsage(toastData.sales, draftPourOz);
+  const rows = [['Item', 'Category', 'Theoretical Usage', 'Unit']];
+  result.usage.forEach(u => {
+    if (u.kind === 'spirit') rows.push([u.item.name, 'Spirits', fmtNum(u.oz, 1), 'oz']);
+    else if (u.kind === 'wine') rows.push([u.item.name, 'Wine', fmtNum(u.glasses, 0), 'glasses']);
+    else if (u.kind === 'wine_keg') rows.push([u.item.name, 'Kegged Wine', fmtNum(u.oz, 1), `oz (${WINE_KEG_POUR_OZ}oz pours)`]);
+    else if (u.kind === 'draft_beer') rows.push([u.item.name, 'Draft Beer', fmtNum(u.oz, 0), `oz (${draftPourOz}oz pours)`]);
+    else if (u.kind === 'bottled_beer') rows.push([u.item.name, 'Bottled/Canned Beer', fmtNum(u.units, 0), 'units']);
+  });
+  downloadCSV(rows, 'hendos_theoretical_usage_' + dateStr() + '.csv');
+}
+
+function renderToastResults(result) {
+  const el = document.getElementById('toastResults');
+  const { usage, unmatchedIngredients, unmatchedRows } = result;
+  const spirits = usage.filter(u => u.kind === 'spirit').sort((a, b) => b.oz - a.oz);
+  const wines = usage.filter(u => u.kind === 'wine').sort((a, b) => b.glasses - a.glasses);
+  const keggedWines = usage.filter(u => u.kind === 'wine_keg').sort((a, b) => b.oz - a.oz);
+  const draft = usage.filter(u => u.kind === 'draft_beer').sort((a, b) => b.oz - a.oz);
+  const bottled = usage.filter(u => u.kind === 'bottled_beer').sort((a, b) => b.units - a.units);
+
+  function section(title, rows, renderRow) {
+    if (rows.length === 0) return '';
+    return `<div class="panel">
+      <div class="panel-header" onclick="togglePanel(this)"><h3>${title}</h3><span class="panel-toggle">▾</span></div>
+      <div class="panel-body"><table class="inv-table">
+        <thead><tr><th>Item</th><th>Theoretical Usage</th><th>≈ Bottles</th></tr></thead>
+        <tbody>${rows.map(renderRow).join('')}</tbody>
+      </table></div>
+    </div>`;
+  }
+
+  const rawPreview = `<div class="panel collapsed">
+    <div class="panel-header" onclick="togglePanel(this)"><h3>Imported Sales Data (${toastData.rawRows.length} rows)</h3><span class="panel-toggle">▾</span></div>
+    <div class="panel-body">
+      <table class="inv-table">
+        <thead><tr>${toastData.rawHeaders.map(h => `<th>${escapeHtml(h)}</th>`).join('')}</tr></thead>
+        <tbody>${toastData.rawRows.slice(0, 50).map(row => `<tr>${row.map(c => `<td>${escapeHtml(c)}</td>`).join('')}</tr>`).join('')}</tbody>
+      </table>
+      ${toastData.rawRows.length > 50 ? `<div style="padding:12px 16px;color:var(--text-muted);font-size:12px">Showing first 50 of ${toastData.rawRows.length} rows</div>` : ''}
+    </div>
+  </div>`;
+
+  const unmatchedCount = unmatchedRows.length + unmatchedIngredients.length;
+  const unmatchedPanel = unmatchedCount === 0 ? '' : `<div class="panel collapsed">
+    <div class="panel-header" onclick="togglePanel(this)"><h3>Unmatched (${unmatchedCount})</h3><span class="panel-toggle">▾</span></div>
+    <div class="panel-body">
+      ${unmatchedRows.length ? `<div style="padding:12px 16px;font-size:12px;color:var(--text-muted)">Toast menu items not found in Cocktails or inventory — check spelling/naming:</div>
+      <table class="inv-table"><tbody>${unmatchedRows.map(r => `<tr><td>${escapeHtml(r.menuItem)}</td><td>${r.qtySold} sold</td></tr>`).join('')}</tbody></table>` : ''}
+      ${unmatchedIngredients.length ? `<div style="padding:12px 16px;font-size:12px;color:var(--text-muted)">Cocktail ingredients not found in inventory:</div>
+      <table class="inv-table"><tbody>${unmatchedIngredients.map(i => `<tr><td>${escapeHtml(i)}</td></tr>`).join('')}</tbody></table>` : ''}
+    </div>
+  </div>`;
+
+  el.innerHTML = `
+    <div class="chip-row">
+      <span style="color:var(--text-muted);font-size:12px;margin-right:4px">Draft pour size:</span>
+      <div class="chip ${draftPourOz === 16 ? 'active' : ''}" onclick="setDraftPourOz(16)">16oz</div>
+      <div class="chip ${draftPourOz === 20 ? 'active' : ''}" onclick="setDraftPourOz(20)">20oz</div>
+    </div>
+    ${section('Spirits — Theoretical Usage', spirits, u => `<tr><td>${escapeHtml(u.item.name)}</td><td>${fmtNum(u.oz, 1)} oz</td><td>${fmtNum(u.oz / BOTTLE_OZ, 2)}</td></tr>`)}
+    ${section('Wine — Theoretical Usage', wines, u => `<tr><td>${escapeHtml(u.item.name)}</td><td>${fmtNum(u.glasses, 0)} glasses</td><td>${fmtNum(u.glasses / WINE_GLASSES_PER_BOTTLE, 2)}</td></tr>`)}
+    ${section(`Kegged Wine — Theoretical Usage (${WINE_KEG_POUR_OZ}oz pours)`, keggedWines, u => `<tr><td>${escapeHtml(u.item.name)}</td><td>${fmtNum(u.oz, 1)} oz</td><td>—</td></tr>`)}
+    ${section(`Draft Beer — Theoretical Usage (${draftPourOz}oz pours)`, draft, u => `<tr><td>${escapeHtml(u.item.name)}</td><td>${fmtNum(u.oz, 0)} oz</td><td>—</td></tr>`)}
+    ${section('Bottled/Canned Beer &amp; Seltzer — Units Sold', bottled, u => `<tr><td>${escapeHtml(u.item.name)}</td><td>${fmtNum(u.units, 0)} units</td><td>—</td></tr>`)}
+    ${usage.length === 0 ? `<div class="empty-state"><div class="es-title">No matches found</div><div>None of the rows in this file matched a cocktail or inventory item name.</div></div>` : `<button class="action-btn" style="margin-top:4px;margin-bottom:12px" onclick="exportTheoreticalUsageCSV()">📥 Export Theoretical Usage CSV</button>`}
+    ${unmatchedPanel}
+    ${rawPreview}
+  `;
+}
+
+// ============================================================
 // TOAST CSV
 // ============================================================
 function handleDrop(e) {
@@ -1344,29 +1526,68 @@ function handleCSVUpload(e) {
   if (file) parseCSV(file);
 }
 
+function parseCSVLine(line) {
+  const cells = [];
+  let cur = '', inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (inQuotes) {
+      if (c === '"') {
+        if (line[i + 1] === '"') { cur += '"'; i++; }
+        else inQuotes = false;
+      } else cur += c;
+    } else {
+      if (c === '"') inQuotes = true;
+      else if (c === ',') { cells.push(cur); cur = ''; }
+      else cur += c;
+    }
+  }
+  cells.push(cur);
+  return cells.map(c => c.trim());
+}
+
+function findColumn(headers, candidates) {
+  for (const cand of candidates) {
+    const idx = headers.indexOf(cand);
+    if (idx !== -1) return idx;
+  }
+  return -1;
+}
+
 function parseCSV(file) {
   const reader = new FileReader();
   reader.onload = function(e) {
     const text = e.target.result;
-    const rows = text.split('\n').map(r => r.split(',').map(c => c.replace(/^"|"$/g,'').trim()));
-    const headers = rows[0].map(h => h.toLowerCase());
-    const data = rows.slice(1).filter(r => r.length > 1 && r.some(c => c));
-
-    document.getElementById('uploadSuccess').textContent = `✓ Loaded ${data.length} rows from ${file.name}`;
-
-    // Show a summary table of what was imported
+    const lines = text.split(/\r?\n/).filter(l => l.trim().length > 0);
     const results = document.getElementById('toastResults');
-    results.innerHTML = `
-      <div class="panel">
-        <div class="panel-header"><h3>Imported Sales Data</h3></div>
-        <div class="panel-body">
-          <table class="inv-table">
-            <thead><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr></thead>
-            <tbody>${data.slice(0,50).map(row => `<tr>${row.map(c => `<td>${c}</td>`).join('')}</tr>`).join('')}</tbody>
-          </table>
-          ${data.length > 50 ? `<div style="padding:12px 16px;color:var(--text-muted);font-size:12px">Showing first 50 of ${data.length} rows</div>` : ''}
-        </div>
-      </div>`;
+
+    if (lines.length < 2) {
+      document.getElementById('uploadSuccess').textContent = '';
+      results.innerHTML = `<div class="empty-state"><div class="es-title">No data found</div><div>This file appears to be empty.</div></div>`;
+      return;
+    }
+
+    const rows = lines.map(parseCSVLine);
+    const headers = rows[0].map(h => h.toLowerCase());
+    const dataRows = rows.slice(1).filter(r => r.length > 1 && r.some(c => c));
+
+    document.getElementById('uploadSuccess').textContent = `✓ Loaded ${dataRows.length} rows from ${file.name}`;
+
+    const nameIdx = findColumn(headers, ['menu item', 'item name', 'item', 'name']);
+    const qtyIdx = findColumn(headers, ['qty sold', 'quantity sold', 'item qty', 'qty', 'quantity', 'count']);
+
+    if (nameIdx === -1 || qtyIdx === -1) {
+      toastData = null;
+      results.innerHTML = `<div class="empty-state"><div class="es-title">Couldn't find sales columns</div><div>Looked for a "Menu Item" and "Qty Sold" column. Found headers: ${escapeHtml(rows[0].join(', '))}</div></div>`;
+      return;
+    }
+
+    const sales = dataRows
+      .map(r => ({ menuItem: (r[nameIdx] || '').trim(), qtySold: parseInt(r[qtyIdx], 10) || 0 }))
+      .filter(s => s.menuItem && s.qtySold > 0);
+
+    toastData = { sales, rawHeaders: rows[0], rawRows: dataRows };
+    renderToastResults(computeTheoreticalUsage(sales, draftPourOz));
   };
   reader.readAsText(file);
 }
