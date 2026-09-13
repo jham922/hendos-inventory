@@ -1412,6 +1412,7 @@ const LIQUOR_POUR_OZ = 1.5;
 const WINE_GLASSES_PER_BOTTLE = 4;
 const WINE_KEG_POUR_OZ = 6; // kegged wine (e.g. sangria on tap) pours by the oz, not by the bottle
 const BOTTLE_OZ = 25.36; // standard 750ml bottle, used only for the "≈ bottles" display column
+const KEG_OZ = 1984; // full-size (1/2 barrel) keg — draft usage is shown in kegs, never bottles
 const BUCKET_MULTIPLIER = 5; // any Toast item named "... Bucket" = 5 bottles/cans of the base product
 
 // ------------------------------------------------------------
@@ -1586,7 +1587,7 @@ function exportTheoreticalUsageCSV() {
     if (u.kind === 'spirit') rows.push([u.item.name, 'Spirits', fmtNum(u.oz, 1), 'oz']);
     else if (u.kind === 'wine') rows.push([u.item.name, 'Wine', fmtNum(u.glasses, 0), 'glasses']);
     else if (u.kind === 'wine_keg') rows.push([u.item.name, 'Kegged Wine', fmtNum(u.oz, 1), `oz (${WINE_KEG_POUR_OZ}oz pours)`]);
-    else if (u.kind === 'draft_beer') rows.push([u.item.name, 'Draft Beer', fmtNum(u.oz, 0), `oz (${draftPourOz}oz pours)`]);
+    else if (u.kind === 'draft_beer') rows.push([u.item.name, 'Draft Beer', fmtNum(u.oz, 0), `oz (${draftPourOz}oz pours) · ${fmtNum(u.oz / KEG_OZ, 2)} kegs`]);
     else if (u.kind === 'bottled_beer') rows.push([u.item.name, 'Bottled/Canned Beer', fmtNum(u.units, 0), 'units']);
   });
   downloadCSV(rows, 'hendos_theoretical_usage_' + dateStr() + '.csv');
@@ -1599,12 +1600,12 @@ function renderUsageSections(usage, draftOzUsed) {
   const draft = usage.filter(u => u.kind === 'draft_beer').sort((a, b) => b.oz - a.oz);
   const bottled = usage.filter(u => u.kind === 'bottled_beer').sort((a, b) => b.units - a.units);
 
-  function section(title, rows, renderRow) {
+  function section(title, rows, renderRow, thirdCol = '≈ Bottles') {
     if (rows.length === 0) return '';
     return `<div class="panel">
       <div class="panel-header" onclick="togglePanel(this)"><h3>${title}</h3><span class="panel-toggle">▾</span></div>
       <div class="panel-body"><table class="inv-table">
-        <thead><tr><th>Item</th><th>Theoretical Usage</th><th>≈ Bottles</th></tr></thead>
+        <thead><tr><th>Item</th><th>Theoretical Usage</th><th>${thirdCol}</th></tr></thead>
         <tbody>${rows.map(renderRow).join('')}</tbody>
       </table></div>
     </div>`;
@@ -1614,7 +1615,7 @@ function renderUsageSections(usage, draftOzUsed) {
     ${section('Spirits — Theoretical Usage', spirits, u => `<tr><td>${escapeHtml(u.item.name)}</td><td>${fmtNum(u.oz, 1)} oz</td><td>${fmtNum(u.oz / BOTTLE_OZ, 2)}</td></tr>`)}
     ${section('Wine — Theoretical Usage', wines, u => `<tr><td>${escapeHtml(u.item.name)}</td><td>${fmtNum(u.glasses, 0)} glasses</td><td>${fmtNum(u.glasses / WINE_GLASSES_PER_BOTTLE, 2)}</td></tr>`)}
     ${section(`Kegged Wine — Theoretical Usage (${WINE_KEG_POUR_OZ}oz pours)`, keggedWines, u => `<tr><td>${escapeHtml(u.item.name)}</td><td>${fmtNum(u.oz, 1)} oz</td><td>—</td></tr>`)}
-    ${section(`Draft Beer — Theoretical Usage (${draftOzUsed}oz pours)`, draft, u => `<tr><td>${escapeHtml(u.item.name)}</td><td>${fmtNum(u.oz, 0)} oz</td><td>—</td></tr>`)}
+    ${section(`Draft Beer — Theoretical Usage (${draftOzUsed}oz pours)`, draft, u => `<tr><td>${escapeHtml(u.item.name)}</td><td>${fmtNum(u.oz, 0)} oz</td><td>${fmtNum(u.oz / KEG_OZ, 2)}</td></tr>`, '≈ Kegs (1,984 oz)')}
     ${section('Bottled/Canned Beer &amp; Seltzer — Units Sold', bottled, u => `<tr><td>${escapeHtml(u.item.name)}</td><td>${fmtNum(u.units, 0)} units</td><td>—</td></tr>`)}
   `;
 }
