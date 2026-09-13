@@ -714,7 +714,21 @@ const COCKTAILS = [
     {qty:"1.5oz", ing:"Roku"},{qty:"0.5oz", ing:"Lime Juice"},
     {qty:"0.5oz", ing:"Simple Syrup"},{qty:"1oz", ing:"Grapefruit Juice"},
     {qty:"2 dashes", ing:"Grapefruit Bitters"}
-  ], serve:"2oz Crazy Hazy into Collins glass, shake rest with ice, strain in, top with 2oz Crazy Hazy; no garnish" }
+  ], serve:"2oz Crazy Hazy into Collins glass, shake rest with ice, strain in, top with 2oz Crazy Hazy; no garnish" },
+  { name: "Old Fashioned", ingredients: [
+    {qty:"2oz", ing:"Buffalo Trace"},{qty:"0.25oz", ing:"Simple Syrup"},
+    {qty:"3 dashes", ing:"Angostura Bitters"}
+  ], serve:"Rocks glass, orange peel (pour spec per Jennifer — confirm garnish)" },
+  { name: "HH Old Fashioned", ingredients: [
+    {qty:"2oz", ing:"Old Forester"},{qty:"0.25oz", ing:"Simple Syrup"},
+    {qty:"3 dashes", ing:"Angostura Bitters"}
+  ], serve:"Happy hour build — 2oz Old Forester (spec per Jennifer)" },
+  { name: "Espresso Martini", ingredients: [
+    {qty:"1.5oz", ing:"Well Vodka (Wheatley)"},{qty:"0.5oz", ing:"Mr Black Coffee Liqueur"}
+  ], serve:"Coupe; espresso beans (espresso not tracked in inventory)" },
+  { name: "Lemon Drop", ingredients: [
+    {qty:"2oz", ing:"Well Vodka (Wheatley)"}
+  ], serve:"2oz well vodka (spec per Jennifer — lemon/sugar not tracked)" }
 ];
 
 const DEFAULT_ITEMS = [
@@ -1395,13 +1409,70 @@ const LIQUOR_POUR_OZ = 1.5;
 const WINE_GLASSES_PER_BOTTLE = 4;
 const WINE_KEG_POUR_OZ = 6; // kegged wine (e.g. sangria on tap) pours by the oz, not by the bottle
 const BOTTLE_OZ = 25.36; // standard 750ml bottle, used only for the "≈ bottles" display column
+const BUCKET_MULTIPLIER = 5; // any Toast item named "... Bucket" = 5 bottles/cans of the base product
+
+// ------------------------------------------------------------
+// TOAST NAME MAPPINGS (confirmed with Jennifer, Sep 2026)
+// Toast rings items up under names that don't match this app's inventory items
+// or recipe names. These are the exceptions that can't be inferred from the text.
+// Written as raw Toast names — the lookup keys are normalized at load time below,
+// so "20oz Cali Sqeeze" and "HH House Red Wine" are found without hand-normalizing.
+// ------------------------------------------------------------
+const TOAST_ALIAS_RAW = {
+  "Coors Bucket": "Coors Light Bottles",        // bucket rule multiplies by 5
+  "20oz Cali Sqeeze": "Cali Squeeze",
+  "20oz Crazy Hazy": "Hazy Ex",
+  "Crazy Hazy": "Hazy Ex",
+  "HH Prolific Pilsner": "Prolific West Coast Pilsner",
+  "Sam Adams Seasonal": "Sam Seasonal",
+  "20oz Mason DIPA": "Mason Double Hazy",
+  "Surfside Strawberry": "Surfside Cans",
+  "High Noon Black Cherry": "High Noon Cherry",
+  "El Tesoro Blanco": "El Tosoro Blanco",
+  "El Tesoro Reposado": "El Tosoro Reposado",
+  "U4rik A?jeo": "u4rik Anejo",
+  "U4Rik Silver": "U4rik Blanco",
+  "Free Will Vodka": "Well Vodka (Wheatley)",
+  "Well Gin": "Beefeater",
+  "Well Tequila": "Sauza Blanco",
+  "Well Whiskey": "Jack Daniel's",
+  "Kim Crawford Sauv Blanc": "Kim Crawford Sauvignon Blanc",
+  "Ferrari Carrano Pinot Grigio": "Ferrari Pinot Grigio",
+  "House White": "Sycamore Lane Chardonnay",
+  "HH House White Wine": "Sycamore Lane Chardonnay",
+  "House Red": "Sycamore Lane Cabernet",
+  "HH House Red Wine": "Sycamore Lane Cabernet",
+  "Freixenet Cordon Negro Brut Splits": "Freixenet Cava Splits",
+  "Sea Glass Pinot Noir": "Seaglass Pinot Noir",
+  "Seaglass Reisling": "Seaglass Riesling",
+  "Peltzer Syrah Ros?": "Peltzer Syrah Rose",
+  "Doffo Cab Sav": "Doffo Cabernet",
+  "Rasp Ice Tea": "Rasp Tea",
+  "Iron Will Reserve": "Iron Will Reserve",
+  "The Contender": "Fuego Fizz"                 // same build, different menu name
+};
+
+// Items that are not tracked in inventory (or not worth tracking) — skipped silently.
+const TOAST_IGNORE_RAW = [
+  "Sample", "Mason Red Ale", "20oz Mason Red", "Happy Dad Seltzer",
+  "Angry Orchard", "20oz Angry Orchard", "Hendo's Golden Ale", "20oz Hendo's Golden Ale",
+  "Casa Azul blanco", "Ros? Draft Glass", "Unsweet Ice Tea",
+  "Bottled Water - Still", "Bottled Water- Sparkling", "Monster", "Milk",
+  "mango green tea", "Kids Chocolate Milk", "Club Soda"
+];
+
+const TOAST_ALIASES = {};
+Object.keys(TOAST_ALIAS_RAW).forEach(k => { TOAST_ALIASES[normalizeName(k)] = TOAST_ALIAS_RAW[k]; });
+const TOAST_IGNORES = new Set(TOAST_IGNORE_RAW.map(normalizeName));
 
 // Item names/cocktail names are matched against Toast menu item text loosely —
 // Toast exports don't carry any ID linking sales rows back to this app's items or cocktails.
 function normalizeName(s) {
   return (s || '')
     .toLowerCase()
-    .replace(/[®™'’.,()]/g, '')
+    .replace(/n\/a/g, 'na')          // "Athletic N/A IPA" rings up as "Athletic NA IPA" in inventory
+    .replace(/[^a-z0-9\s]/g, '')     // strip quotes, punctuation, accents, "?" encoding artifacts
+    .replace(/\b\d+\s*oz\b/g, ' ')   // size prefixes: "20oz El Hendo" -> "El Hendo"
     .replace(/\b(draft|glass|bottle|btl|can|neat|rocks|single|double|shot|pour|of)\b/g, '')
     .replace(/\s+/g, ' ')
     .trim();
@@ -1454,8 +1525,16 @@ function computeTheoreticalUsage(sales, draftOz) {
   }
 
   sales.forEach(({ menuItem, qtySold }) => {
-    const normName = normalizeName(menuItem);
+    let normName = normalizeName(menuItem);
     if (!normName || !qtySold) return;
+    if (TOAST_IGNORES.has(normName)) return;              // not tracked (water, milk, discontinued...)
+
+    // "Coors Bucket" etc. = BUCKET_MULTIPLIER bottles/cans of the base product
+    const isBucket = /\bbucket\b/i.test(menuItem);
+    const qty = qtySold * (isBucket ? BUCKET_MULTIPLIER : 1);
+
+    const alias = TOAST_ALIASES[normName];                 // Toast name -> inventory/recipe name
+    if (alias) normName = normalizeName(alias);
 
     const cocktail = findCocktailMatch(normName);
     if (cocktail) {
@@ -1464,7 +1543,7 @@ function computeTheoreticalUsage(sales, draftOz) {
         if (oz == null) return; // non-liquid garnish (dashes, slices, "top", etc.) — not tracked
         const item = findItemMatch(normalizeName(ing.ing));
         if (!item) { unmatchedIngredients.add(ing.ing); return; }
-        bump(item, classifyItem(item), 'oz', qtySold * oz);
+        bump(item, classifyItem(item), 'oz', qty * oz);
       });
       return;
     }
@@ -1472,11 +1551,11 @@ function computeTheoreticalUsage(sales, draftOz) {
     const item = findItemMatch(normName);
     if (item) {
       const kind = classifyItem(item);
-      if (kind === 'spirit') bump(item, kind, 'oz', qtySold * LIQUOR_POUR_OZ);
-      else if (kind === 'wine') bump(item, kind, 'glasses', qtySold);
-      else if (kind === 'wine_keg') bump(item, kind, 'oz', qtySold * WINE_KEG_POUR_OZ);
-      else if (kind === 'draft_beer') bump(item, kind, 'oz', qtySold * draftOz);
-      else if (kind === 'bottled_beer') bump(item, kind, 'units', qtySold);
+      if (kind === 'spirit') bump(item, kind, 'oz', qty * LIQUOR_POUR_OZ);
+      else if (kind === 'wine') bump(item, kind, 'glasses', qty);
+      else if (kind === 'wine_keg') bump(item, kind, 'oz', qty * WINE_KEG_POUR_OZ);
+      else if (kind === 'draft_beer') bump(item, kind, 'oz', qty * draftOz);
+      else if (kind === 'bottled_beer') bump(item, kind, 'units', qty);
       return;
     }
 
