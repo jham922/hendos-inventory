@@ -56,9 +56,12 @@ Examples that this rule fixes:
 2. Every count is snapshotted into `count_history` automatically, so counts are comparable over time.
 3. **Monday — order** from the Order Dashboard.
 4. **Wednesday — delivery.** Nobody has to do anything.
-5. **Thursday 16:00 UTC — the receiving job** pulls both vendor portals, matches every line
+5. **Monday 6am PT — the Toast job** pulls last week's Product mix (Mon–Sun), loads it into the
+   Toast tab and saves it to History. Nobody has to do anything.
+6. **Thursday 16:00 UTC — the receiving job** pulls both vendor portals, matches every line
    against `vendor_item_map`, and writes `received_items`.
-6. **Upload the Toast report for the same week**, then open **Variance**.
+7. **Tuesday 7am PT — the variance report** lands in WhatsApp: how many items are short, the
+   estimated value missing, and the biggest shortfalls. Open the **Variance** tab for the detail.
 
 ### The maths
 
@@ -98,6 +101,7 @@ These run on the Hermes box and are copied into `scripts/` here for reference:
 | `receiving-weekly.sh` | Wrapper for the two above | same run |
 | `session-keepalive.py` / `.sh` | Keeps the browser sessions alive; **signs back in automatically** from stored credentials; restarts Chrome/Xvfb if they died | every 6 h |
 | `secret-capture.py` | One-shot web form (tailnet only) to enter portal credentials without them touching chat | on demand |
+| `toast-weekly.py` / `toast-weekly.sh` | Pulls last week's Toast Product-mix export (Mon–Sun), loads it into the app's Toast tab and saves it to History with the matching range. Skips weeks already uploaded. | Mon 13:00 UTC (6am PT) |
 | `variance-report.js` / `variance-weekly.sh` | Weekly shrink alert to WhatsApp: items measured, how many short, estimated value missing, biggest shortfalls. Silent when there's nothing new. | Tue 14:00 UTC (7am PT) |
 
 Portal credentials live on the server at `/root/.hermes/secrets/vendor-logins.env` (mode 600).
