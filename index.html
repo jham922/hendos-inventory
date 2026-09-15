@@ -555,21 +555,44 @@
   <div class="controls" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
     <h3 style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:2px;color:var(--gold);margin:0">Received Stock</h3>
     <span style="color:var(--text-muted);font-size:12px" id="receivingMeta"></span>
+    <label style="font-size:12px;color:var(--text-muted);display:flex;align-items:center;gap:6px">
+      Show
+      <select id="rcvWindow" class="rcv-input" onchange="setReceivingWindow(this.value)" style="width:auto;padding:6px 8px">
+        <option value="28" selected>last 4 weeks</option>
+        <option value="56">last 8 weeks</option>
+        <option value="90">last 3 months</option>
+        <option value="0">everything</option>
+      </select>
+    </label>
     <button class="action-btn" onclick="loadReceiving()" style="margin-left:auto">↻ Refresh</button>
     <button class="action-btn" onclick="toggleManualReceipt()">+ Add receipt</button>
   </div>
   <div id="manualReceipt" class="panel" style="display:none">
-    <div class="panel-header"><h3>Add a receipt (paper invoices)</h3></div>
+    <div class="panel-header"><h3>Add a receipt (paper invoices &amp; small vendors)</h3></div>
     <div class="panel-body" style="padding:16px">
       <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
         <div><label class="rcv-label">Vendor</label><select id="rcvVendor" class="rcv-input"></select></div>
-        <div><label class="rcv-label">Item</label><input id="rcvItem" class="rcv-input" list="rcvItemList" placeholder="start typing…"><datalist id="rcvItemList"></datalist></div>
-        <div><label class="rcv-label">Qty</label><input id="rcvQty" type="number" step="0.01" class="rcv-input" style="width:90px"></div>
-        <div><label class="rcv-label">Unit</label><select id="rcvUnit" class="rcv-input"><option>bottles</option><option>cans</option><option>kegs</option><option>cases</option><option>units</option></select></div>
         <div><label class="rcv-label">Delivery date</label><input id="rcvDate" type="date" class="rcv-input"></div>
-        <button class="action-btn" onclick="saveManualReceipt()">Save</button>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-top:12px">
+        <div style="flex:1;min-width:220px"><label class="rcv-label">Item</label><input id="rcvItem" class="rcv-input" list="rcvItemList" placeholder="start typing…" oninput="rcvItemPicked()"><datalist id="rcvItemList"></datalist></div>
+        <div><label class="rcv-label">Qty</label><input id="rcvQty" type="number" step="0.01" class="rcv-input" style="width:90px"></div>
+        <div><label class="rcv-label">Counted in</label><input id="rcvUnitHint" class="rcv-input" style="width:130px;background:var(--surface-2,#171a21);color:var(--text-muted)" readonly value="pick an item"></div>
+        <button class="action-btn" onclick="addReceiptLine()">＋ Add line</button>
+      </div>
+      <div id="rcvDraftWrap" style="display:none;margin-top:14px">
+        <div style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--text-dim);margin-bottom:6px">Lines on this receipt</div>
+        <div id="rcvDraftList"></div>
+        <div style="margin-top:10px;display:flex;gap:10px;align-items:center">
+          <button class="action-btn" onclick="saveReceiptDraft()">Save receipt</button>
+          <button class="filter-btn" onclick="clearReceiptDraft()">Clear</button>
+        </div>
       </div>
       <div id="rcvStatus" style="font-size:12px;color:var(--text-muted);margin-top:10px"></div>
+      <div style="font-size:12px;color:var(--text-dim);margin-top:8px">
+        Quantities are recorded in each item's own counting unit — the same unit you count it in —
+        so paper deliveries line up with the Toast/Variance maths automatically.
+      </div>
     </div>
   </div>
   <div id="receivingBody"></div>
@@ -2044,6 +2067,13 @@ function computeReceivedByItem() {
   });
 }
 
+let receivingWindowDays = 28;   // how much delivery history the tab lists (0 = everything)
+
+function setReceivingWindow(v) {
+  receivingWindowDays = parseInt(v, 10) || 0;
+  renderReceiving();
+}
+
 function renderReceiving() {
   const el = document.getElementById('receivingBody');
   const meta = document.getElementById('receivingMeta');
@@ -2051,11 +2081,20 @@ function renderReceiving() {
 
   const confirmed = receivedRows.filter(r => r.status === 'confirmed');
   const unmapped = receivedRows.filter(r => r.status === 'needs_mapping');
-  const byDate = [...new Set(receivedRows.map(r => r.delivery_date))].sort().reverse();
-  if (meta) meta.textContent = confirmed.length + ' lines from ' + byDate.length + ' deliveries' +
+
+  // the tab lists only a recent window (older deliveries stay in the database —
+  // the variance maths needs them — but they don't need to be read every week)
+  const cutoff = receivingWindowDays > 0
+    ? new Date(Date.now() - receivingWindowDays * 86400000).toISOString().slice(0, 10)
+    : '';
+  const visible = cutoff ? receivedRows.filter(r => (r.delivery_date || '') >= cutoff) : receivedRows;
+  const hiddenCount = receivedRows.length - visible.length;
+
+  const byDate = [...new Set(visible.map(r => r.delivery_date))].sort().reverse();
+  if (meta) meta.textContent = visible.filter(r => r.status === 'confirmed').length + ' lines from ' + byDate.length + ' deliveries' +
     (unmapped.length ? ' · ' + unmapped.length + ' need mapping' : '');
 
-  if (!receivedRows.length) {
+  if (!visible.length) {
     el.innerHTML = '<div class="empty-state"><div class="es-title">Nothing received yet</div><div>Invoices pulled from Proof and SipMarket will appear here.</div></div>';
     return;
   }
@@ -2078,7 +2117,7 @@ function renderReceiving() {
 
   // deliveries, newest first
   byDate.forEach(d => {
-    const dayRows = receivedRows.filter(r => r.delivery_date === d);
+    const dayRows = visible.filter(r => r.delivery_date === d);
     const vendors = [...new Set(dayRows.map(r => r.vendor))];
     vendors.forEach(v => {
       const rows = dayRows.filter(r => r.vendor === v && r.status === 'confirmed');
@@ -2097,6 +2136,13 @@ function renderReceiving() {
       html += `</tbody></table></div></div>`;
     });
   });
+
+  if (hiddenCount) {
+    html += `<div style="color:var(--text-muted);font-size:12px;margin-top:14px;line-height:1.6">
+      ${hiddenCount} older line${hiddenCount === 1 ? '' : 's'} not listed — they're kept in the database, since the variance
+      history needs them. Switch <strong>Show</strong> above to look further back.
+    </div>`;
+  }
 
   el.innerHTML = html;
 }
@@ -2125,6 +2171,12 @@ async function saveLineMapping(rowId, vendor, itemNumber) {
   } catch (e) { alert('Mapping failed: ' + e.message); }
 }
 
+let rcvDraft = [];   // lines staged for the receipt being entered
+
+function rcvUnitFor(item) {
+  return itemUnitWord(item.par) || 'units';   // always the item's own counting unit
+}
+
 function toggleManualReceipt() {
   const el = document.getElementById('manualReceipt');
   el.style.display = el.style.display === 'none' ? '' : 'none';
@@ -2132,32 +2184,83 @@ function toggleManualReceipt() {
     const vs = document.getElementById('rcvVendor');
     vs.innerHTML = vendors.map(v => `<option>${escapeHtml(v)}</option>`).join('');
     document.getElementById('rcvItemList').innerHTML = items.map(i => `<option value="${escapeHtml(i.name)}">`).join('');
-    document.getElementById('rcvDate').value = new Date().toISOString().slice(0, 10);
+    if (!document.getElementById('rcvDate').value) {
+      document.getElementById('rcvDate').value = new Date().toISOString().slice(0, 10);
+    }
+    renderReceiptDraft();
   }
 }
 
-async function saveManualReceipt() {
-  const vendor = document.getElementById('rcvVendor').value;
-  const itemName = document.getElementById('rcvItem').value.trim();
-  const qty = parseFloat(document.getElementById('rcvQty').value);
-  const unit = document.getElementById('rcvUnit').value;
-  const date = document.getElementById('rcvDate').value;
+function rcvItemPicked() {
+  const name = document.getElementById('rcvItem').value.trim().toLowerCase();
+  const item = items.find(i => i.name.toLowerCase() === name);
+  document.getElementById('rcvUnitHint').value = item
+    ? rcvUnitFor(item) + ' · par ' + item.par
+    : 'pick an item';
+}
+
+function addReceiptLine() {
   const status = document.getElementById('rcvStatus');
-  const item = items.find(i => i.name.toLowerCase() === itemName.toLowerCase());
+  const name = document.getElementById('rcvItem').value.trim();
+  const item = items.find(i => i.name.toLowerCase() === name.toLowerCase());
+  const qty = parseFloat(document.getElementById('rcvQty').value);
   if (!item) { status.textContent = 'Pick an item from the list.'; status.style.color = 'var(--red)'; return; }
   if (!qty || isNaN(qty)) { status.textContent = 'Enter a quantity.'; status.style.color = 'var(--red)'; return; }
+  rcvDraft.push({ itemId: item.id, itemName: item.name, qty: qty, unit: rcvUnitFor(item) });
+  document.getElementById('rcvQty').value = '';
+  document.getElementById('rcvItem').value = '';
+  document.getElementById('rcvUnitHint').value = 'pick an item';
+  status.textContent = '';
+  renderReceiptDraft();
+  document.getElementById('rcvItem').focus();
+}
+
+function renderReceiptDraft() {
+  const wrap = document.getElementById('rcvDraftWrap');
+  const list = document.getElementById('rcvDraftList');
+  if (!wrap || !list) return;
+  wrap.style.display = rcvDraft.length ? '' : 'none';
+  list.innerHTML = rcvDraft.map((l, i) => `
+    <div style="display:flex;align-items:center;gap:10px;padding:7px 10px;border-bottom:1px solid var(--border);font-size:13px">
+      <span style="flex:1">${escapeHtml(l.itemName)}</span>
+      <span style="font-family:'DM Mono',monospace">${fmtNum(l.qty, 2)} ${l.unit}</span>
+      <button class="edit-btn" onclick="removeReceiptLine(${i})">✕</button>
+    </div>`).join('');
+}
+
+function removeReceiptLine(i) { rcvDraft.splice(i, 1); renderReceiptDraft(); }
+
+function clearReceiptDraft() {
+  rcvDraft = [];
+  renderReceiptDraft();
+  const s = document.getElementById('rcvStatus');
+  if (s) s.textContent = '';
+}
+
+async function saveReceiptDraft() {
+  const status = document.getElementById('rcvStatus');
+  if (!rcvDraft.length) return;
+  const vendor = document.getElementById('rcvVendor').value;
+  const date = document.getElementById('rcvDate').value || new Date().toISOString().slice(0, 10);
+  const invoice = 'manual-' + date + '-' + Date.now();
   status.textContent = 'Saving…'; status.style.color = 'var(--text-muted)';
   try {
-    await sbFetch('/rest/v1/received_items', { method: 'POST', body: JSON.stringify({
-      vendor: vendor, invoice_number: 'manual-' + date + '-' + Date.now(), delivery_date: date,
-      vendor_item_number: 'manual', vendor_description: item.name, item_id: item.id, item_name: item.name,
-      qty: qty, unit: unit, qty_units: qty, source: 'manual', status: 'confirmed', note: 'manual entry'
-    })});
-    status.textContent = '✓ Saved ' + qty + ' ' + unit + ' of ' + item.name;
+    for (const l of rcvDraft) {
+      await sbFetch('/rest/v1/received_items', { method: 'POST', body: JSON.stringify({
+        vendor: vendor, invoice_number: invoice, delivery_date: date,
+        vendor_item_number: 'manual', vendor_description: l.itemName,
+        item_id: l.itemId, item_name: l.itemName,
+        qty: l.qty, unit: l.unit, qty_units: l.qty,
+        source: 'manual', status: 'confirmed', note: 'manual entry (' + vendor + ')'
+      })});
+    }
+    status.textContent = '✓ Saved ' + rcvDraft.length + ' line' + (rcvDraft.length > 1 ? 's' : '') + ' from ' + vendor;
     status.style.color = 'var(--green)';
-    document.getElementById('rcvQty').value = '';
+    clearReceiptDraft();
     loadReceiving();
-  } catch (e) { status.textContent = 'Failed: ' + e.message; status.style.color = 'var(--red)'; }
+  } catch (e) {
+    status.textContent = 'Failed: ' + e.message; status.style.color = 'var(--red)';
+  }
 }
 
 // ============================================================
