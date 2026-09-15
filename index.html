@@ -97,6 +97,8 @@
   .inv-card-info { flex: 1; min-width: 0; }
   .inv-card-name { font-weight: 600; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .inv-card-par { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .inv-card-recv { font-size: 12px; color: var(--text-muted); margin-top: 2px; font-family: 'DM Mono', monospace; }
+  .inv-card-recv strong { color: var(--green); }
   .inv-card-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex-shrink: 0; }
   .inv-card-status { display: flex; align-items: center; gap: 6px; }
 
@@ -1171,6 +1173,20 @@ function parUnit(par) {
   return { tag: 'other', label: par };
 }
 
+function itemUnitWord(par) {
+  const tag = parUnit(par).tag;
+  return { keg: 'kegs', case: 'cases', bottle: 'bottles', bib: 'bib', flat: 'flats' }[tag] || '';
+}
+
+// amount received (last 7 days), expressed in the item's counting unit
+function receivedCellHTML(item) {
+  const q = receivedByItem[item.id];
+  if (!q) return '<span style="color:var(--text-muted)">—</span>';
+  const n = fmtNum(q, Number(q) % 1 ? 2 : 0);
+  const u = itemUnitWord(item.par);
+  return `<span title="received in the last 7 days" style="color:var(--green);font-family:'DM Mono',monospace;font-weight:600">+${n}</span> <span style="color:var(--text-muted);font-size:11px">${u}</span>`;
+}
+
 function stockStatus(item) {
   if (item.onHand === null) return 'uncounted';
   const v = parseFloat(item.onHand);
@@ -1280,8 +1296,9 @@ function renderInventory() {
             <!-- MOBILE CARD -->
             <div class="inv-card">
               <div class="inv-card-info">
-                <div class="inv-card-name">${item.name}${receivedByItem[item.id] ? ` <span style="color:var(--green);font-size:11px;font-family:'DM Mono',monospace">+${fmtNum(receivedByItem[item.id], 0)} recv</span>` : ''}</div>
+                <div class="inv-card-name">${item.name}</div>
                 <div class="inv-card-par"><span class="tag tag-${pu.tag}">${pu.label}</span> ${vendorBadge(item.vendor)}</div>
+                ${receivedByItem[item.id] ? `<div class="inv-card-recv">Received: <strong>+${fmtNum(receivedByItem[item.id], Number(receivedByItem[item.id]) % 1 ? 2 : 0)} ${itemUnitWord(item.par)}</strong></div>` : ''}
               </div>
               <div class="inv-card-right">
                 <input type="number" inputmode="decimal" class="qty-input ${item.onHand !== null ? 'has-value' : ''}"
@@ -1301,14 +1318,14 @@ function renderInventory() {
         <div class="inv-table-wrap">
           <table class="inv-table">
             <thead><tr>
-              <th>Item</th><th>Vendor</th><th>Par</th><th>On Hand</th><th>Status</th><th>Stock</th>
+              <th>Item</th><th>Vendor</th><th>Par</th><th>On Hand</th><th>Received (7d)</th><th>Status</th><th>Stock</th>
             </tr></thead>
             <tbody>
               ${catItems.map(item => {
                 const pu = parUnit(item.par);
                 const status = stockStatus(item);
                 return `<tr>
-                  <td style="font-weight:500">${item.name}${receivedByItem[item.id] ? ` <span style="color:var(--green);font-size:11px;font-family:'DM Mono',monospace">+${fmtNum(receivedByItem[item.id], 0)}</span>` : ''}</td>
+                  <td style="font-weight:500">${item.name}</td>
                   <td>${vendorBadge(item.vendor)}</td>
                   <td><span class="tag tag-${pu.tag}">${pu.label}</span></td>
                   <td><input type="number" inputmode="decimal" class="qty-input ${item.onHand !== null ? 'has-value' : ''}"
@@ -1317,6 +1334,7 @@ function renderInventory() {
                     onchange="handleCountInput(this,'${item.id}')"
                     ${userRole === 'readonly' ? 'disabled' : ''}
                   ></td>
+                  <td>${receivedCellHTML(item)}</td>
                   <td>${statusBadge(status)}</td>
                   <td>${stockBarHTML(item)}</td>
                 </tr>`;
