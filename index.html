@@ -73,6 +73,8 @@
   }
   .nav-item .nav-icon { font-size: 20px; line-height: 1; }
   .nav-item.active { color: var(--amber); }
+  .rcv-label { display:block; color:var(--text-muted); font-size:11px; margin-bottom:4px; }
+  .rcv-input { background:var(--surface2); border:1px solid var(--border); color:#fff; border-radius:6px; padding:8px; font-size:14px; }
 
   /* MAIN */
   main { padding: 16px; max-width: 1400px; margin: 0 auto; }
@@ -460,6 +462,7 @@
   <div class="tab" onclick="showTab('order')" id="dtab-order">🛒 Order Dashboard</div>
   <div class="tab" onclick="showTab('cocktails')" id="dtab-cocktails">🍹 Cocktail Builds</div>
   <div class="tab" onclick="showTab('toast')" id="dtab-toast">📊 Toast POS</div>
+  <div class="tab" onclick="showTab('receiving')" id="dtab-receiving">📦 Receiving</div>
   <div class="tab" onclick="showTab('history')" id="dtab-history">🕘 History</div>
   <div class="tab" onclick="showTab('admin')" id="dtab-admin">⚙️ Admin</div>
 </div>
@@ -477,6 +480,9 @@
   </button>
   <button class="nav-item" onclick="showTab('toast')" id="nav-toast">
     <span class="nav-icon">📊</span>Toast
+  </button>
+  <button class="nav-item" onclick="showTab('receiving')" id="nav-receiving">
+    <span class="nav-icon">📦</span>Receive
   </button>
   <button class="nav-item" onclick="showTab('history')" id="nav-history">
     <span class="nav-icon">🕘</span>History
@@ -536,6 +542,31 @@
     <div class="upload-success" id="uploadSuccess"></div>
   </div>
   <div id="toastResults"></div>
+</div>
+
+<!-- ===== RECEIVING TAB ===== -->
+<div id="tab-receiving" style="display:none">
+  <div class="controls" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+    <h3 style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:2px;color:var(--gold);margin:0">Received Stock</h3>
+    <span style="color:var(--text-muted);font-size:12px" id="receivingMeta"></span>
+    <button class="action-btn" onclick="loadReceiving()" style="margin-left:auto">↻ Refresh</button>
+    <button class="action-btn" onclick="toggleManualReceipt()">+ Add receipt</button>
+  </div>
+  <div id="manualReceipt" class="panel" style="display:none">
+    <div class="panel-header"><h3>Add a receipt (paper invoices)</h3></div>
+    <div class="panel-body" style="padding:16px">
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+        <div><label class="rcv-label">Vendor</label><select id="rcvVendor" class="rcv-input"></select></div>
+        <div><label class="rcv-label">Item</label><input id="rcvItem" class="rcv-input" list="rcvItemList" placeholder="start typing…"><datalist id="rcvItemList"></datalist></div>
+        <div><label class="rcv-label">Qty</label><input id="rcvQty" type="number" step="0.01" class="rcv-input" style="width:90px"></div>
+        <div><label class="rcv-label">Unit</label><select id="rcvUnit" class="rcv-input"><option>bottles</option><option>cans</option><option>kegs</option><option>cases</option><option>units</option></select></div>
+        <div><label class="rcv-label">Delivery date</label><input id="rcvDate" type="date" class="rcv-input"></div>
+        <button class="action-btn" onclick="saveManualReceipt()">Save</button>
+      </div>
+      <div id="rcvStatus" style="font-size:12px;color:var(--text-muted);margin-top:10px"></div>
+    </div>
+  </div>
+  <div id="receivingBody"></div>
 </div>
 
 <!-- ===== HISTORY TAB ===== -->
@@ -1249,7 +1280,7 @@ function renderInventory() {
             <!-- MOBILE CARD -->
             <div class="inv-card">
               <div class="inv-card-info">
-                <div class="inv-card-name">${item.name}</div>
+                <div class="inv-card-name">${item.name}${receivedByItem[item.id] ? ` <span style="color:var(--green);font-size:11px;font-family:'DM Mono',monospace">+${fmtNum(receivedByItem[item.id], 0)} recv</span>` : ''}</div>
                 <div class="inv-card-par"><span class="tag tag-${pu.tag}">${pu.label}</span> ${vendorBadge(item.vendor)}</div>
               </div>
               <div class="inv-card-right">
@@ -1277,7 +1308,7 @@ function renderInventory() {
                 const pu = parUnit(item.par);
                 const status = stockStatus(item);
                 return `<tr>
-                  <td style="font-weight:500">${item.name}</td>
+                  <td style="font-weight:500">${item.name}${receivedByItem[item.id] ? ` <span style="color:var(--green);font-size:11px;font-family:'DM Mono',monospace">+${fmtNum(receivedByItem[item.id], 0)}</span>` : ''}</td>
                   <td>${vendorBadge(item.vendor)}</td>
                   <td><span class="tag tag-${pu.tag}">${pu.label}</span></td>
                   <td><input type="number" inputmode="decimal" class="qty-input ${item.onHand !== null ? 'has-value' : ''}"
@@ -1923,10 +1954,160 @@ async function clearAll() {
 }
 
 // ============================================================
+// RECEIVING — what the vendors actually delivered
+// ============================================================
+let receivedRows = [];
+let mapIndex = {};         // "vendor|itemnum" -> vendor_item_map row
+let receivedByItem = {};   // item_id -> units received in the last 7 days
+
+async function loadReceiving() {
+  const el = document.getElementById('receivingBody');
+  if (!el) return;
+  el.innerHTML = '<div style="padding:20px;color:var(--text-muted)">Loading…</div>';
+  try {
+    receivedRows = await sbFetch('/rest/v1/received_items?select=*&order=delivery_date.desc,item_name.asc&limit=500');
+    const map = await sbFetch('/rest/v1/vendor_item_map?select=vendor,vendor_item_number,inventory_item_name,inventory_item_id,unit_factor&limit=600');
+    mapIndex = {};
+    map.forEach(m => { mapIndex[m.vendor + '|' + m.vendor_item_number] = m; });
+    computeReceivedByItem();
+    renderReceiving();
+    if (typeof renderInventory === 'function') renderInventory();
+  } catch (e) {
+    el.innerHTML = '<div style="padding:20px;color:var(--red)">Could not load receiving data: ' + escapeHtml(e.message) + '</div>';
+  }
+}
+
+function computeReceivedByItem() {
+  receivedByItem = {};
+  const cutoff = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
+  receivedRows.forEach(r => {
+    if (r.status !== 'confirmed' || !r.item_id) return;
+    if ((r.delivery_date || '') < cutoff) return;
+    receivedByItem[r.item_id] = (receivedByItem[r.item_id] || 0) + Number(r.qty_units || 0);
+  });
+}
+
+function renderReceiving() {
+  const el = document.getElementById('receivingBody');
+  const meta = document.getElementById('receivingMeta');
+  if (!el) return;
+
+  const confirmed = receivedRows.filter(r => r.status === 'confirmed');
+  const unmapped = receivedRows.filter(r => r.status === 'needs_mapping');
+  const byDate = [...new Set(receivedRows.map(r => r.delivery_date))].sort().reverse();
+  if (meta) meta.textContent = confirmed.length + ' lines from ' + byDate.length + ' deliveries' +
+    (unmapped.length ? ' · ' + unmapped.length + ' need mapping' : '');
+
+  if (!receivedRows.length) {
+    el.innerHTML = '<div class="empty-state"><div class="es-title">Nothing received yet</div><div>Invoices pulled from Proof and SipMarket will appear here.</div></div>';
+    return;
+  }
+
+  let html = '';
+
+  // unmatched lines need a decision before they count
+  if (unmapped.length) {
+    html += `<div class="panel"><div class="panel-header"><h3>⚠ Needs mapping (${unmapped.length})</h3><span class="panel-toggle">▾</span></div>
+      <div class="panel-body"><table class="inv-table"><thead><tr><th>Vendor item</th><th>Qty</th><th>Count as</th><th></th></tr></thead><tbody>`;
+    unmapped.slice(0, 30).forEach(r => {
+      const opts = items.map(i => `<option value="${escapeHtml(i.name)}">${escapeHtml(i.name)}</option>`).join('');
+      html += `<tr><td>${escapeHtml(r.vendor_description || '')}<div style="font-size:11px;color:var(--text-muted)">${escapeHtml(r.vendor)} · #${escapeHtml(r.vendor_item_number || '')}</div></td>
+        <td>${escapeHtml(String(r.qty))} ${escapeHtml(r.unit || '')}</td>
+        <td><select id="map-${escapeHtml(r.id)}" style="background:var(--surface2);border:1px solid var(--border);color:#fff;border-radius:6px;padding:6px;max-width:180px"><option value="">— pick item —</option>${opts}</select></td>
+        <td><button class="action-btn" onclick="saveLineMapping('${escapeHtml(r.id)}','${escapeHtml(r.vendor)}','${escapeHtml(r.vendor_item_number || '')}')">Save</button></td></tr>`;
+    });
+    html += `</tbody></table></div></div>`;
+  }
+
+  // deliveries, newest first
+  byDate.forEach(d => {
+    const dayRows = receivedRows.filter(r => r.delivery_date === d);
+    const vendors = [...new Set(dayRows.map(r => r.vendor))];
+    vendors.forEach(v => {
+      const rows = dayRows.filter(r => r.vendor === v && r.status === 'confirmed');
+      const ignored = dayRows.filter(r => r.vendor === v && r.status === 'ignored').length;
+      if (!rows.length && !ignored) return;
+      const cost = rows.reduce((s, r) => s + Number(r.net_cost || 0), 0);
+      html += `<div class="panel collapsed"><div class="panel-header" onclick="togglePanel(this)">
+        <h3>${escapeHtml(d)} · ${escapeHtml(v)} · ${rows.length} lines${ignored ? ' (' + ignored + ' ignored)' : ''}${cost ? ' · $' + cost.toFixed(2) : ''}</h3>
+        <span class="panel-toggle">▾</span></div>
+        <div class="panel-body"><table class="inv-table"><thead><tr><th>Item</th><th>Received</th><th>As invoiced</th></tr></thead><tbody>`;
+      rows.sort((a, b) => (a.item_name || '').localeCompare(b.item_name || '')).forEach(r => {
+        html += `<tr><td>${escapeHtml(r.item_name || '')}</td>
+          <td>${fmtNum(Number(r.qty_units || 0), 0)} ${escapeHtml(r.unit || '')}</td>
+          <td style="color:var(--text-muted);font-size:12px">${escapeHtml(r.note || '')}</td></tr>`;
+      });
+      html += `</tbody></table></div></div>`;
+    });
+  });
+
+  el.innerHTML = html;
+}
+
+async function saveLineMapping(rowId, vendor, itemNumber) {
+  const sel = document.getElementById('map-' + rowId);
+  if (!sel || !sel.value) return;
+  const item = items.find(i => i.name === sel.value);
+  if (!item) return;
+  try {
+    await sbFetch('/rest/v1/received_items?id=eq.' + rowId, {
+      method: 'PATCH',
+      body: JSON.stringify({ item_id: item.id, item_name: item.name, status: 'confirmed', qty_units: 0 })
+    });
+    const existing = mapIndex[vendor + '|' + itemNumber];
+    if (existing) {
+      await sbFetch(`/rest/v1/vendor_item_map?vendor=eq.${encodeURIComponent(vendor)}&vendor_item_number=eq.${encodeURIComponent(itemNumber)}`, {
+        method: 'PATCH', body: JSON.stringify({ inventory_item_id: item.id, inventory_item_name: item.name })
+      });
+    } else {
+      await sbFetch('/rest/v1/vendor_item_map', {
+        method: 'POST', body: JSON.stringify({ vendor: vendor, vendor_item_number: itemNumber, inventory_item_id: item.id, inventory_item_name: item.name, unit_factor: 1, unit_label: 'units' })
+      });
+    }
+    loadReceiving();
+  } catch (e) { alert('Mapping failed: ' + e.message); }
+}
+
+function toggleManualReceipt() {
+  const el = document.getElementById('manualReceipt');
+  el.style.display = el.style.display === 'none' ? '' : 'none';
+  if (el.style.display !== 'none') {
+    const vs = document.getElementById('rcvVendor');
+    vs.innerHTML = vendors.map(v => `<option>${escapeHtml(v)}</option>`).join('');
+    document.getElementById('rcvItemList').innerHTML = items.map(i => `<option value="${escapeHtml(i.name)}">`).join('');
+    document.getElementById('rcvDate').value = new Date().toISOString().slice(0, 10);
+  }
+}
+
+async function saveManualReceipt() {
+  const vendor = document.getElementById('rcvVendor').value;
+  const itemName = document.getElementById('rcvItem').value.trim();
+  const qty = parseFloat(document.getElementById('rcvQty').value);
+  const unit = document.getElementById('rcvUnit').value;
+  const date = document.getElementById('rcvDate').value;
+  const status = document.getElementById('rcvStatus');
+  const item = items.find(i => i.name.toLowerCase() === itemName.toLowerCase());
+  if (!item) { status.textContent = 'Pick an item from the list.'; status.style.color = 'var(--red)'; return; }
+  if (!qty || isNaN(qty)) { status.textContent = 'Enter a quantity.'; status.style.color = 'var(--red)'; return; }
+  status.textContent = 'Saving…'; status.style.color = 'var(--text-muted)';
+  try {
+    await sbFetch('/rest/v1/received_items', { method: 'POST', body: JSON.stringify({
+      vendor: vendor, invoice_number: 'manual-' + date + '-' + Date.now(), delivery_date: date,
+      vendor_item_number: 'manual', vendor_description: item.name, item_id: item.id, item_name: item.name,
+      qty: qty, unit: unit, qty_units: qty, source: 'manual', status: 'confirmed', note: 'manual entry'
+    })});
+    status.textContent = '✓ Saved ' + qty + ' ' + unit + ' of ' + item.name;
+    status.style.color = 'var(--green)';
+    document.getElementById('rcvQty').value = '';
+    loadReceiving();
+  } catch (e) { status.textContent = 'Failed: ' + e.message; status.style.color = 'var(--red)'; }
+}
+
+// ============================================================
 // TABS
 // ============================================================
 function showTab(id) {
-  ['inventory','order','cocktails','toast','history','admin'].forEach(t => {
+  ['inventory','order','cocktails','toast','receiving','history','admin'].forEach(t => {
     document.getElementById('tab-' + t).style.display = t === id ? '' : 'none';
     const mob = document.getElementById('nav-' + t);
     if (mob) mob.classList.toggle('active', t === id);
@@ -1934,6 +2115,7 @@ function showTab(id) {
     if (desk) desk.classList.toggle('active', t === id);
   });
   if (id === 'order') renderOrder();
+  if (id === 'receiving') loadReceiving();
   if (id === 'history') loadToastHistory();
 }
 
@@ -2387,6 +2569,7 @@ function startApp(session) {
     await loadVendors();
     await loadCustomItems();
     await loadState();
+    loadReceiving();   // received-stock badges + Receiving tab data
   })();
 }
 
