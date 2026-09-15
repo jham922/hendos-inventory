@@ -121,6 +121,16 @@ They are **never** in this repo and never pass through chat.
 
 ---
 
+## 6a. Go-live cleanup (2026-09-15)
+
+The 90 days of backfilled deliveries used while repairing the unit conversion (May 13 → Sep 9)
+were archived and cleared so the app starts with the first real delivery:
+
+- rows → `~/business-reports/invoices/archive/received_items-backup-2026-09-15.json` (484 rows)
+- invoice text files → `~/business-reports/invoices/archive/old-invoices/{proof,sipmarket}/`
+  (moved aside so the weekly ingest can't re-add them; the pull writes fresh files)
+- **kept**: `count_history` (the variance baseline) and `toast_uploads` (theoretical usage)
+
 ## 7. Known gaps / next candidates
 
 - **Southern invoice line prices aren't parsed** → the variance `Est. $` column only fills in
