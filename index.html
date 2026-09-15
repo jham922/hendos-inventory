@@ -465,6 +465,7 @@
   <div class="tab" onclick="showTab('cocktails')" id="dtab-cocktails">🍹 Cocktail Builds</div>
   <div class="tab" onclick="showTab('toast')" id="dtab-toast">📊 Toast POS</div>
   <div class="tab" onclick="showTab('receiving')" id="dtab-receiving">📦 Receiving</div>
+  <div class="tab" onclick="showTab('variance')" id="dtab-variance">📉 Variance</div>
   <div class="tab" onclick="showTab('history')" id="dtab-history">🕘 History</div>
   <div class="tab" onclick="showTab('admin')" id="dtab-admin">⚙️ Admin</div>
 </div>
@@ -485,6 +486,9 @@
   </button>
   <button class="nav-item" onclick="showTab('receiving')" id="nav-receiving">
     <span class="nav-icon">📦</span>Receive
+  </button>
+  <button class="nav-item" onclick="showTab('variance')" id="nav-variance">
+    <span class="nav-icon">📉</span>Variance
   </button>
   <button class="nav-item" onclick="showTab('history')" id="nav-history">
     <span class="nav-icon">🕘</span>History
@@ -569,6 +573,20 @@
     </div>
   </div>
   <div id="receivingBody"></div>
+</div>
+
+<!-- ===== VARIANCE TAB ===== -->
+<div id="tab-variance" style="display:none">
+  <div class="controls" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+    <h3 style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:2px;color:var(--gold);margin:0">Variance · Shrink</h3>
+    <span style="color:var(--text-muted);font-size:12px" id="varianceMeta"></span>
+    <label style="font-size:12px;color:var(--text-muted);display:flex;align-items:center;gap:6px;margin-left:auto;cursor:pointer">
+      <input type="checkbox" id="varianceOnlyFlags" onchange="renderVariance()" checked> only flagged
+    </label>
+    <button class="action-btn" onclick="loadVariance()">↻ Refresh</button>
+  </div>
+  <div id="varianceSummary"></div>
+  <div id="varianceBody"></div>
 </div>
 
 <!-- ===== HISTORY TAB ===== -->
@@ -1055,6 +1073,25 @@ async function saveItem(id, val, updatedBy) {
         method: 'POST',
         body: JSON.stringify({ id, on_hand: val, updated_by: updatedBy, updated_at: now })
       });
+    }
+    // Append a snapshot so variance can compare one count against the next.
+    // Skipped when the value hasn't changed (the first edit of a session always records).
+    try {
+      if (lastHistSnapshot[id] !== String(val)) {
+        await sbFetch('/rest/v1/count_history', {
+          method: 'POST',
+          body: JSON.stringify({
+            item_id: id,
+            on_hand: val === null ? null : String(val),
+            counted_at: now,
+            counted_by: updatedBy,
+            session_date: now.slice(0, 10)
+          })
+        });
+        lastHistSnapshot[id] = String(val);
+      }
+    } catch (e) {
+      console.warn('count history append failed:', e);
     }
     showSyncStatus('synced');
   } catch(e) {
@@ -2122,10 +2159,238 @@ async function saveManualReceipt() {
 }
 
 // ============================================================
+// VARIANCE — what disappeared vs what the sales explain
+// ============================================================
+// usage    = start count + received − end count          (in the item's counting unit)
+// variance = theoretical − usage                          (NEGATIVE = product missing)
+let lastHistSnapshot = {};      // item_id -> last value written to count_history this session
+let varianceUploads = [];       // recent toast_uploads rows (theoretical usage)
+let varianceHistory = [];
+
+const OZ_PER_BOTTLE = 25.36;    // 750 ml — same basis the Toast tab uses for "≈ bottles"
+const OZ_PER_KEG = 1984;        // ½ barrel; kegs are counted as kegs
+const OZ_PER_GLASS = 5;         // wine pour, for glasses -> bottles
+const DEFAULT_UNITS_PER_CASE = 24;
+
+// pack size (units per case) per inventory item, taken from the vendor map
+function unitsPerCaseFor(itemId) {
+  let best = 0;
+  Object.values(mapIndex || {}).forEach(m => {
+    if (m.inventory_item_id !== itemId) return;
+    const f = Number(m.unit_factor);
+    if (f > best) best = f;
+  });
+  return best > 1 ? best : DEFAULT_UNITS_PER_CASE;
+}
+
+function mergeSessions(rows) {
+  // group snapshot days into count sessions (a Sun+Mon count is ONE session)
+  const byDate = {};
+  rows.forEach(r => {
+    if (!r.session_date || !r.item_id) return;
+    (byDate[r.session_date] = byDate[r.session_date] || []).push(r);
+  });
+  const sessions = [];
+  Object.keys(byDate).sort().forEach(d => {
+    const prev = sessions[sessions.length - 1];
+    if (!prev || (new Date(d) - new Date(prev.end)) / 86400000 > 2) {
+      sessions.push({ start: d, end: d, rows: byDate[d].slice() });
+    } else {
+      prev.end = d;
+      prev.rows = prev.rows.concat(byDate[d]);
+    }
+  });
+  sessions.forEach(s => {
+    s.last = {};
+    s.rows.sort((a, b) => String(a.counted_at).localeCompare(String(b.counted_at)));
+    s.rows.forEach(r => { if (r.on_hand !== null && r.on_hand !== '') s.last[r.item_id] = Number(r.on_hand); });
+  });
+  return sessions;
+}
+
+function theoreticalFor(item, entry) {
+  if (!entry) return null;
+  const unit = itemUnitWord(item.par);
+  const kind = entry.kind;
+  if (kind === 'spirit') {
+    const b = (entry.oz || 0) / OZ_PER_BOTTLE;
+    return unit === 'cases' ? b / unitsPerCaseFor(item.id) : b;
+  }
+  if (kind === 'wine') {
+    const b = ((entry.glasses || 0) * OZ_PER_GLASS) / OZ_PER_BOTTLE;
+    return unit === 'cases' ? b / unitsPerCaseFor(item.id) : b;
+  }
+  if (kind === 'wine_keg' || kind === 'draft_beer') return (entry.oz || 0) / OZ_PER_KEG;
+  if (kind === 'bottled_beer') {
+    const u = entry.units || 0;
+    return unit === 'cases' ? u / unitsPerCaseFor(item.id) : u;
+  }
+  return null;
+}
+
+function costPerUnitFor(itemId) {
+  let cost = null, bestDate = '';
+  (varianceReceived || []).forEach(r => {
+    if (r.item_id !== itemId) return;
+    const q = Number(r.qty_units);
+    const net = Number(r.net_cost);
+    if (!q || !net || isNaN(q) || isNaN(net)) return;
+    const d = r.delivery_date || '';
+    if (d >= bestDate) { bestDate = d; cost = net / q; }
+  });
+  return cost;
+}
+
+async function loadVariance() {
+  const body = document.getElementById('varianceBody');
+  const meta = document.getElementById('varianceMeta');
+  if (!body) return;
+  body.innerHTML = '<div style="padding:20px;color:var(--text-muted)">Loading…</div>';
+  try {
+    varianceHistory = await sbFetch('/rest/v1/count_history?select=item_id,on_hand,counted_at,session_date&order=counted_at.asc&limit=5000');
+    if (!receivedRows.length) {
+      receivedRows = await sbFetch('/rest/v1/received_items?select=*&order=delivery_date.desc,item_name.asc&limit=500');
+    }
+    if (!Object.keys(mapIndex).length) {
+      const map = await sbFetch('/rest/v1/vendor_item_map?select=vendor,vendor_item_number,inventory_item_name,inventory_item_id,unit_factor&limit=600');
+      mapIndex = {};
+      map.forEach(m => { mapIndex[m.vendor + '|' + m.vendor_item_number] = m; });
+    }
+    varianceReceived = receivedRows.filter(r => r.status === 'confirmed' && r.item_id);
+    varianceUploads = await sbFetch('/rest/v1/toast_uploads?select=date_range_start,date_range_end,usage,uploaded_at&order=uploaded_at.desc&limit=12');
+    renderVariance();
+  } catch (e) {
+    body.innerHTML = '<div style="padding:20px;color:var(--red)">Could not load variance data: ' + escapeHtml(e.message) + '</div>';
+  }
+}
+
+function renderVariance() {
+  const body = document.getElementById('varianceBody');
+  const summary = document.getElementById('varianceSummary');
+  const meta = document.getElementById('varianceMeta');
+  if (!body) return;
+
+  const sessions = mergeSessions(varianceHistory);
+
+  if (sessions.length < 2) {
+    if (meta) meta.textContent = '';
+    summary.innerHTML = '';
+    body.innerHTML = `
+      <div class="panel"><div class="panel-body" style="padding:22px">
+        <div style="font-size:15px;font-weight:600;margin-bottom:8px">One count on record — variance starts with your next count</div>
+        <div style="color:var(--text-muted);font-size:13px;line-height:1.6;max-width:640px">
+          Variance needs two counts to compare: <em>start + received − end = usage</em>, measured against
+          what Toast says you sold. Your count on <strong>${sessions.length ? sessions[0].end : '—'}</strong> is saved as the starting point,
+          so the next one produces the first variance report.
+          <br><br>Everything else is already in place — deliveries from Southern and Gate City are recorded in the
+          item's own counting unit, so the maths will line up.
+        </div>
+      </div></div>`;
+    return;
+  }
+
+  const start = sessions[sessions.length - 2];
+  const end = sessions[sessions.length - 1];
+  const from = start.end, to = end.end;
+
+  // theoretical usage for this window (best-overlapping Toast upload)
+  let bestUpload = null, bestOverlap = 0;
+  (varianceUploads || []).forEach(u => {
+    const s = String(u.date_range_start).slice(0, 10), e = String(u.date_range_end).slice(0, 10);
+    const lo = s > from ? s : from, hi = e < to ? e : to;
+    const days = (new Date(hi) - new Date(lo)) / 86400000;
+    if (days > bestOverlap) { bestOverlap = days; bestUpload = u; }
+  });
+  const theo = {};
+  if (bestUpload && bestUpload.usage) {
+    (Array.isArray(bestUpload.usage) ? bestUpload.usage : []).forEach(u => {
+      if (u && u.item && u.item.id) theo[u.item.id] = u;
+    });
+  }
+
+  const recv = {};
+  varianceReceived.forEach(r => {
+    const d = String(r.delivery_date || '').slice(0, 10);
+    if (d > from && d <= to) recv[r.item_id] = (recv[r.item_id] || 0) + Number(r.qty_units || 0);
+  });
+
+  const rows = [];
+  items.forEach(item => {
+    const s = start.last[item.id], e = end.last[item.id];
+    if (s === undefined || e === undefined) return;          // not counted in both sessions
+    const received = recv[item.id] || 0;
+    const usage = s + received - e;
+    const theoretical = theoreticalFor(item, theo[item.id]);
+    if (theoretical === null) return;                        // no sales basis for this item
+    const variance = theoretical - usage;                    // negative = missing
+    const threshold = Math.max(0.5, Math.abs(theoretical) * 0.10);
+    const flagged = variance < -threshold;                   // only shortfalls flag
+    const cost = costPerUnitFor(item.id);
+    rows.push({ item, start: s, received, end: e, usage, theoretical, variance, flagged,
+                dollars: cost !== null ? variance * cost : null, unit: itemUnitWord(item.par) });
+  });
+
+  const flaggedRows = rows.filter(r => r.flagged);
+  const totalDollars = flaggedRows.reduce((a, r) => a + (r.dollars || 0), 0);
+
+  if (meta) meta.textContent = `${from} → ${to}`;
+  summary.innerHTML = `
+    <div class="panel" style="margin-bottom:14px"><div class="panel-body" style="padding:16px;display:flex;gap:26px;flex-wrap:wrap;align-items:baseline">
+      <div><div style="font-size:11px;letter-spacing:1px;color:var(--text-dim);text-transform:uppercase">Period</div>
+           <div style="font-family:'DM Mono',monospace;font-size:14px">${from} → ${to}</div></div>
+      <div><div style="font-size:11px;letter-spacing:1px;color:var(--text-dim);text-transform:uppercase">Items measured</div>
+           <div style="font-family:'DM Mono',monospace;font-size:14px">${rows.length}</div></div>
+      <div><div style="font-size:11px;letter-spacing:1px;color:var(--text-dim);text-transform:uppercase">Flagged short</div>
+           <div style="font-family:'DM Mono',monospace;font-size:14px;color:${flaggedRows.length ? 'var(--red)' : 'var(--green)'}">${flaggedRows.length}</div></div>
+      <div><div style="font-size:11px;letter-spacing:1px;color:var(--text-dim);text-transform:uppercase">Est. value missing</div>
+           <div style="font-family:'DM Mono',monospace;font-size:14px;color:${totalDollars < 0 ? 'var(--red)' : 'var(--text)'}">${totalDollars ? '$' + fmtNum(Math.abs(totalDollars), 2) : '—'}</div></div>
+      <div style="color:var(--text-muted);font-size:12px;max-width:320px">${bestUpload ? 'Theoretical from Toast ' + String(bestUpload.date_range_start).slice(0,10) + ' → ' + String(bestUpload.date_range_end).slice(0,10) : '⚠ No Toast report covers this period yet — upload one on the Toast POS tab'}</div>
+    </div></div>`;
+
+  const onlyFlags = document.getElementById('varianceOnlyFlags');
+  const show = (onlyFlags && onlyFlags.checked) ? flaggedRows : rows;
+  if (!show.length) {
+    body.innerHTML = '<div class="panel"><div class="panel-body" style="padding:20px;color:var(--green)">Nothing short this period — every measured item is within tolerance. 🎉</div></div>';
+    return;
+  }
+
+  const line = r => {
+    const col = r.flagged ? 'var(--red)' : (r.variance > 0 ? 'var(--text-muted)' : 'var(--text)');
+    const sign = r.variance < 0 ? '' : '+';
+    return `<tr${r.flagged ? ' style="background:rgba(224,82,82,.07)"' : ''}>
+      <td style="font-weight:500">${escapeHtml(r.item.name)}</td>
+      <td><span class="tag tag-${parUnit(r.item.par).tag}">${parUnit(r.item.par).label}</span></td>
+      <td style="font-family:'DM Mono',monospace">${fmtNum(r.start, 2)}</td>
+      <td style="font-family:'DM Mono',monospace;color:var(--green)">${r.received ? '+' + fmtNum(r.received, 2) : '—'}</td>
+      <td style="font-family:'DM Mono',monospace">${fmtNum(r.end, 2)}</td>
+      <td style="font-family:'DM Mono',monospace">${fmtNum(r.usage, 2)}</td>
+      <td style="font-family:'DM Mono',monospace">${fmtNum(r.theoretical, 2)}</td>
+      <td style="font-family:'DM Mono',monospace;font-weight:600;color:${col}">${sign}${fmtNum(r.variance, 2)}</td>
+      <td style="font-family:'DM Mono',monospace;color:${col}">${r.dollars !== null ? (r.dollars < 0 ? '-' : '+') + '$' + fmtNum(Math.abs(r.dollars), 2) : '—'}</td>
+    </tr>`;
+  };
+
+  body.innerHTML = `
+    <div class="panel"><div class="panel-body" style="padding:0">
+      <div class="inv-table-wrap"><table class="inv-table">
+        <thead><tr>
+          <th>Item</th><th>Par</th><th>Start</th><th>Received</th><th>End</th><th>Usage</th><th>Theoretical</th><th>Variance</th><th>Est. $</th>
+        </tr></thead>
+        <tbody>${show.map(line).join('')}</tbody>
+      </table></div>
+    </div></div>
+    <div style="color:var(--text-muted);font-size:12px;margin-top:10px;line-height:1.6">
+      <strong style="color:var(--red)">Negative variance = product missing</strong> — more went out the door than the sales explain.
+      Positive means less disappeared than expected (usually an over-count or an unrecorded delivery).
+      Quantities are in each item's own counting unit. Flagged when the shortfall exceeds half a unit or 10% of usage.
+    </div>`;
+}
+
+// ============================================================
 // TABS
 // ============================================================
 function showTab(id) {
-  ['inventory','order','cocktails','toast','receiving','history','admin'].forEach(t => {
+  ['inventory','order','cocktails','toast','receiving','variance','history','admin'].forEach(t => {
     document.getElementById('tab-' + t).style.display = t === id ? '' : 'none';
     const mob = document.getElementById('nav-' + t);
     if (mob) mob.classList.toggle('active', t === id);
@@ -2134,6 +2399,7 @@ function showTab(id) {
   });
   if (id === 'order') renderOrder();
   if (id === 'receiving') loadReceiving();
+  if (id === 'variance') loadVariance();
   if (id === 'history') loadToastHistory();
 }
 
