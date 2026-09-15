@@ -1141,15 +1141,17 @@ async function pollUpdates() {
       const item = items.find(i => i.id === row.id);
       if (item) {
         // Update par/vendor/name if changed
-        if (item.par !== row.par || item.vendor !== row.vendor || item.name !== row.name) {
+        if (item.par !== row.par || item.vendor !== row.vendor || item.name !== row.name
+            || Number(item.bottleSizeOz || 0) !== Number(row.bottle_size_oz || 0)) {
           item.par = row.par;
           item.vendor = row.vendor || '—';
           item.name = row.name;
+          item.bottleSizeOz = row.bottle_size_oz;
           itemsChanged = true;
         }
       } else {
         // New item added via admin
-        items.push({ id: row.id, name: row.name, category: row.category, vendor: row.vendor || '—', par: row.par, onHand: null });
+        items.push({ id: row.id, name: row.name, category: row.category, vendor: row.vendor || '—', par: row.par, onHand: null, bottleSizeOz: row.bottle_size_oz });
         itemsChanged = true;
       }
     });
@@ -1698,7 +1700,7 @@ function renderUsageSections(usage, draftOzUsed) {
   }
 
   return `
-    ${section('Spirits — Theoretical Usage', spirits, u => `<tr><td>${escapeHtml(u.item.name)}</td><td>${fmtNum(u.oz, 1)} oz</td><td>${fmtNum(u.oz / BOTTLE_OZ, 2)}</td></tr>`)}
+    ${section('Spirits — Theoretical Usage', spirits, u => `<tr><td>${escapeHtml(u.item.name)}</td><td>${fmtNum(u.oz, 1)} oz</td><td>${fmtNum(u.oz / bottleOz(liveItem(u.item.id) || u.item), 2)}</td></tr>`)}
     ${section('Wine — Theoretical Usage', wines, u => `<tr><td>${escapeHtml(u.item.name)}</td><td>${fmtNum(u.glasses, 0)} glasses</td><td>${fmtNum(u.glasses / WINE_GLASSES_PER_BOTTLE, 2)}</td></tr>`)}
     ${section(`Kegged Wine — Theoretical Usage (${WINE_KEG_POUR_OZ}oz pours)`, keggedWines, u => `<tr><td>${escapeHtml(u.item.name)}</td><td>${fmtNum(u.oz, 1)} oz</td><td>—</td></tr>`)}
     ${section(`Draft Beer — Theoretical Usage (${draftOzUsed}oz pours)`, draft, u => `<tr><td>${escapeHtml(u.item.name)}</td><td>${fmtNum(u.oz, 0)} oz</td><td>${fmtNum(u.oz / KEG_OZ, 2)}</td></tr>`, '≈ Kegs (1,984 oz)')}
@@ -2172,6 +2174,18 @@ const OZ_PER_KEG = 1984;        // ½ barrel; kegs are counted as kegs
 const OZ_PER_GLASS = 5;         // wine pour, for glasses -> bottles
 const DEFAULT_UNITS_PER_CASE = 24;
 
+// Per-item bottle size (inventory_items.bottle_size_oz, taken from the vendor invoices).
+// Falls back to a 750 ml bottle when an item has no size recorded.
+function bottleOz(item) {
+  const v = Number(item && item.bottleSizeOz);
+  return v > 1 ? v : OZ_PER_BOTTLE;
+}
+
+// the live item record (usage snapshots store an old copy without bottle size)
+function liveItem(id) {
+  return (typeof items !== 'undefined' && items) ? items.find(i => i.id === id) : null;
+}
+
 // pack size (units per case) per inventory item, taken from the vendor map
 function unitsPerCaseFor(itemId) {
   let best = 0;
@@ -2212,12 +2226,13 @@ function theoreticalFor(item, entry) {
   if (!entry) return null;
   const unit = itemUnitWord(item.par);
   const kind = entry.kind;
+  const perBottle = bottleOz(item);        // 750 ml vs 1 L vs 1.75 L, per item
   if (kind === 'spirit') {
-    const b = (entry.oz || 0) / OZ_PER_BOTTLE;
+    const b = (entry.oz || 0) / perBottle;
     return unit === 'cases' ? b / unitsPerCaseFor(item.id) : b;
   }
   if (kind === 'wine') {
-    const b = ((entry.glasses || 0) * OZ_PER_GLASS) / OZ_PER_BOTTLE;
+    const b = ((entry.glasses || 0) * OZ_PER_GLASS) / perBottle;
     return unit === 'cases' ? b / unitsPerCaseFor(item.id) : b;
   }
   if (kind === 'wine_keg' || kind === 'draft_beer') return (entry.oz || 0) / OZ_PER_KEG;
@@ -2730,13 +2745,14 @@ async function loadCustomItems() {
     rows.forEach(row => {
       const existing = items.find(i => i.id === row.id);
       if (!existing) {
-        items.push({ id: row.id, name: row.name, category: row.category, vendor: row.vendor || '—', par: row.par, onHand: null });
+        items.push({ id: row.id, name: row.name, category: row.category, vendor: row.vendor || '—', par: row.par, onHand: null, bottleSizeOz: row.bottle_size_oz });
       } else {
         // Always update par/vendor/name from DB — DB is source of truth for admin changes
         existing.par = row.par;
         existing.vendor = row.vendor || '—';
         existing.name = row.name;
         existing.category = row.category;
+        existing.bottleSizeOz = row.bottle_size_oz;
       }
     });
   } catch(e) {
