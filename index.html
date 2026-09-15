@@ -2332,6 +2332,9 @@ function renderVariance() {
 
   const flaggedRows = rows.filter(r => r.flagged);
   const totalDollars = flaggedRows.reduce((a, r) => a + (r.dollars || 0), 0);
+  const periodDays = Math.max(1, (new Date(to) - new Date(from)) / 86400000);
+  const coverage = bestUpload ? Math.min(1, bestOverlap / periodDays) : 0;
+  const coverageWarn = bestUpload && coverage < 0.9;
 
   if (meta) meta.textContent = `${from} → ${to}`;
   summary.innerHTML = `
@@ -2344,7 +2347,11 @@ function renderVariance() {
            <div style="font-family:'DM Mono',monospace;font-size:14px;color:${flaggedRows.length ? 'var(--red)' : 'var(--green)'}">${flaggedRows.length}</div></div>
       <div><div style="font-size:11px;letter-spacing:1px;color:var(--text-dim);text-transform:uppercase">Est. value missing</div>
            <div style="font-family:'DM Mono',monospace;font-size:14px;color:${totalDollars < 0 ? 'var(--red)' : 'var(--text)'}">${totalDollars ? '$' + fmtNum(Math.abs(totalDollars), 2) : '—'}</div></div>
-      <div style="color:var(--text-muted);font-size:12px;max-width:320px">${bestUpload ? 'Theoretical from Toast ' + String(bestUpload.date_range_start).slice(0,10) + ' → ' + String(bestUpload.date_range_end).slice(0,10) : '⚠ No Toast report covers this period yet — upload one on the Toast POS tab'}</div>
+      <div style="color:${coverageWarn ? 'var(--amber)' : 'var(--text-muted)'};font-size:12px;max-width:340px">${bestUpload
+          ? (coverageWarn
+              ? '⚠ The Toast report used covers only ' + Math.round(coverage * 100) + '% of this period (' + String(bestUpload.date_range_start).slice(0,10) + ' → ' + String(bestUpload.date_range_end).slice(0,10) + ') — upload the matching week for a true comparison'
+              : 'Theoretical from Toast ' + String(bestUpload.date_range_start).slice(0,10) + ' → ' + String(bestUpload.date_range_end).slice(0,10))
+          : '⚠ No Toast report covers this period yet — upload one on the Toast POS tab'}</div>
     </div></div>`;
 
   const onlyFlags = document.getElementById('varianceOnlyFlags');
