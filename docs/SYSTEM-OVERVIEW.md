@@ -98,6 +98,7 @@ These run on the Hermes box and are copied into `scripts/` here for reference:
 | `receiving-weekly.sh` | Wrapper for the two above | same run |
 | `session-keepalive.py` / `.sh` | Keeps the browser sessions alive; **signs back in automatically** from stored credentials; restarts Chrome/Xvfb if they died | every 6 h |
 | `secret-capture.py` | One-shot web form (tailnet only) to enter portal credentials without them touching chat | on demand |
+| `variance-report.js` / `variance-weekly.sh` | Weekly shrink alert to WhatsApp: items measured, how many short, estimated value missing, biggest shortfalls. Silent when there's nothing new. | Tue 14:00 UTC (7am PT) |
 
 Portal credentials live on the server at `/root/.hermes/secrets/vendor-logins.env` (mode 600).
 They are **never** in this repo and never pass through chat.
