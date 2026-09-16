@@ -60,3 +60,13 @@ Admins can add new vendors or rename existing ones from the Admin tab. Renaming 
 - Supabase stores vendors in the `vendors` table (`id`, `name`, `created_at`) — loaded on startup with fallback to hardcoded defaults if unavailable
 - localStorage is used as an offline fallback
 - The app polls Supabase every 15 seconds to sync counts from other users
+
+
+## Current state (maintained by the Hermes assistant)
+
+- **Status and next steps:** `docs/PROJECT-STATUS.md` — read this before starting work.
+- **Change log:** `docs/CHANGES.md` — append one dated line after every work session,
+  whoever did the work (Claude Code or Hermes). This is the handoff between tools.
+- Server-side automation (scheduled jobs, vendor-portal pulls, databases) is **not** in
+  this repo — it lives on the Hermes host. Nothing here should assume it is visible.
+- Never commit credentials. Portal logins and API keys stay server-side.
