@@ -510,6 +510,11 @@
     <div class="chip" id="chip-out" onclick="toggleFilter('out')">Out</div>
     <div id="vendorChips"></div>
   </div>
+  <div class="chip-row">
+    <span style="color:var(--text-muted);font-size:12px;margin-right:4px">Group by:</span>
+    <div class="chip active" id="chip-group-category" onclick="setGroupBy('category')">Category</div>
+    <div class="chip" id="chip-group-cabinet" onclick="setGroupBy('cabinet')">Cabinet</div>
+  </div>
   <div id="inventoryPanels"></div>
 </div>
 <!-- ===== ORDER DASHBOARD TAB ===== -->
@@ -582,6 +587,23 @@
       </div>
       <div id="vendorListWrap"></div>
     </div>
+
+    <!-- CABINET MANAGEMENT SECTION -->
+    <div style="margin-top:28px">
+      <div style="font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-dim);border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:12px">Cabinets</div>
+      <div style="margin-bottom:10px">
+        <button class="action-btn" onclick="showAddCabinetForm()" id="addCabinetBtn" style="font-size:13px;padding:7px 16px">+ Add Cabinet</button>
+      </div>
+      <div id="addCabinetForm" style="display:none;margin-bottom:12px">
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <input type="text" id="newCabinetInput" class="search-input" placeholder="Cabinet name" style="padding-left:14px;max-width:240px" oninput="validateNewCabinetInput()">
+          <button class="action-btn" id="saveNewCabinetBtn" onclick="saveNewCabinet()" style="font-size:13px;padding:7px 16px" disabled>Save</button>
+          <button class="filter-btn" onclick="hideAddCabinetForm()" style="font-size:13px">Cancel</button>
+        </div>
+        <div id="addCabinetError" style="color:var(--red);font-size:12px;margin-top:6px"></div>
+      </div>
+      <div id="cabinetListWrap"></div>
+    </div>
   </div>
 
   <!-- ADD/EDIT MODAL -->
@@ -606,6 +628,11 @@
       <div style="margin-bottom:14px">
         <label style="font-size:11px;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase;display:block;margin-bottom:6px">Vendor</label>
         <select id="editVendor" class="filter-btn" style="width:100%;appearance:none;-webkit-appearance:none;background-color:var(--bg)">
+        </select>
+      </div>
+      <div style="margin-bottom:14px">
+        <label style="font-size:11px;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase;display:block;margin-bottom:6px">Cabinet</label>
+        <select id="editCabinet" class="filter-btn" style="width:100%;appearance:none;-webkit-appearance:none;background-color:var(--bg)">
         </select>
       </div>
       <div style="margin-bottom:20px">
@@ -900,9 +927,11 @@ async function sbFetch(path, options = {}, retries = 3) {
 // ============================================================
 let items = [];
 let vendors = [];
+let cabinets = [];
 let activeFilters = { low: false, out: false };
 let activeCategory = 'all';
 let activeVendor = 'all';
+let groupBy = 'category'; // 'category' | 'cabinet' — how the Inventory tab groups items into panels
 let toastData = null; // { sales, rawHeaders, rawRows } from the last parsed Toast CSV
 let draftPourOz = parseInt(localStorage.getItem('hendos_draft_pour_oz'), 10) || 16;
 let currentSession = null;  // Supabase session object
@@ -1151,6 +1180,15 @@ function setCategory(cat) {
   const chip = document.getElementById('chip-' + cat);
   if (chip) chip.classList.add('active');
   // clear status filters when switching category
+  document.getElementById('chip-group-category').classList.toggle('active', groupBy === 'category');
+  document.getElementById('chip-group-cabinet').classList.toggle('active', groupBy === 'cabinet');
+  renderInventory();
+}
+
+function setGroupBy(mode) {
+  groupBy = mode;
+  document.getElementById('chip-group-category').classList.toggle('active', mode === 'category');
+  document.getElementById('chip-group-cabinet').classList.toggle('active', mode === 'cabinet');
   renderInventory();
 }
 
@@ -1159,21 +1197,28 @@ function renderInventory() {
   const panels = document.getElementById('inventoryPanels');
   panels.innerHTML = '';
 
-  CATEGORY_ORDER.forEach(cat => {
-    if (activeCategory !== 'all' && activeCategory !== cat) return;
+  const groups = groupBy === 'cabinet' ? [...cabinets, '—'] : CATEGORY_ORDER;
 
-    let catItems = items.filter(i => i.category === cat).sort((a, b) => a.name.localeCompare(b.name));
+  groups.forEach(groupVal => {
+    if (groupBy === 'category' && activeCategory !== 'all' && activeCategory !== groupVal) return;
+
+    let catItems = groupBy === 'cabinet'
+      ? items.filter(i => (i.cabinet || '—') === groupVal)
+      : items.filter(i => i.category === groupVal);
+    catItems = catItems.sort((a, b) => a.name.localeCompare(b.name));
+    if (groupBy === 'cabinet' && activeCategory !== 'all') catItems = catItems.filter(i => i.category === activeCategory);
     if (search) catItems = catItems.filter(i => i.name.toLowerCase().includes(search));
     if (activeFilters.low) catItems = catItems.filter(i => stockStatus(i) === 'low');
     if (activeFilters.out) catItems = catItems.filter(i => stockStatus(i) === 'out');
     if (activeVendor !== 'all') catItems = catItems.filter(i => i.vendor === activeVendor);
     if (catItems.length === 0) return;
 
+    const groupLabel = groupVal === '—' ? 'Unassigned' : groupVal;
     const panel = document.createElement('div');
     panel.className = 'panel';
     panel.innerHTML = `
       <div class="panel-header" onclick="togglePanel(this)">
-        <h3>${cat} <span style="font-size:13px;color:var(--text-muted);font-family:'DM Sans',sans-serif;letter-spacing:0;font-weight:400">(${catItems.length})</span></h3>
+        <h3>${escapeHtml(groupLabel)} <span style="font-size:13px;color:var(--text-muted);font-family:'DM Sans',sans-serif;letter-spacing:0;font-weight:400">(${catItems.length})</span></h3>
         <span class="panel-toggle">▾</span>
       </div>
       <div class="panel-body">
@@ -1989,6 +2034,199 @@ async function saveRenameVendor(index, oldName) {
   }
 }
 
+// ============================================================
+// CABINETS
+// ============================================================
+async function loadCabinets() {
+  try {
+    const rows = await sbFetch('/rest/v1/cabinets?select=name&order=created_at.asc');
+    cabinets = rows.map(r => r.name);
+  } catch(e) {
+    console.warn('Could not load cabinets:', e);
+    cabinets = [];
+  }
+  renderCabinetList();
+}
+
+function populateCabinetSelect(selectedValue) {
+  const sel = document.getElementById('editCabinet');
+  if (!sel) return;
+  sel.innerHTML = '';
+  [...cabinets, '—'].forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c;
+    opt.textContent = c === '—' ? 'Unassigned' : c;
+    if (c === selectedValue) opt.selected = true;
+    sel.appendChild(opt);
+  });
+}
+
+function renderCabinetList() {
+  const wrap = document.getElementById('cabinetListWrap');
+  if (!wrap) return;
+  if (!cabinets.length) {
+    wrap.innerHTML = '<div style="color:var(--text-dim);font-size:13px">No cabinets yet.</div>';
+    return;
+  }
+  wrap.innerHTML = cabinets.map((c, i) => {
+    const ce = escapeHtml(c);
+    return `
+    <div class="vendor-mgmt-row" id="cabinet-row-${i}" style="display:flex;align-items:center;justify-content:space-between;padding:9px 12px;border-bottom:1px solid var(--border);background:var(--surface);${i===0?'border-radius:8px 8px 0 0':''}${i===cabinets.length-1?';border-radius:0 0 8px 8px;border-bottom:none':''}">
+      <span id="cabinet-name-${i}" style="font-size:13px;font-weight:500">${ce}</span>
+      <div id="cabinet-view-${i}" style="display:flex;gap:6px">
+        <button class="edit-btn" onclick="showRenameCabinetForm(${i})">Rename</button>
+      </div>
+      <div id="cabinet-edit-${i}" style="display:none;flex:1;margin-left:12px">
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <input type="text" id="rename-cabinet-input-${i}" class="search-input" value="${ce}" data-cabinet="${ce}" style="padding-left:14px;max-width:200px" oninput="validateRenameCabinetInput(${i})">
+          <button class="action-btn" id="rename-cabinet-save-btn-${i}" data-old-cabinet="${ce}" onclick="saveRenameCabinet(${i}, this.dataset.oldCabinet)" style="font-size:12px;padding:6px 12px">Save</button>
+          <button class="filter-btn" onclick="hideRenameCabinetForm(${i})" style="font-size:12px">Cancel</button>
+        </div>
+        <div id="rename-cabinet-error-${i}" style="color:var(--red);font-size:12px;margin-top:6px"></div>
+      </div>
+    </div>
+  `}).join('');
+}
+
+function showAddCabinetForm() {
+  document.getElementById('addCabinetForm').style.display = '';
+  document.getElementById('newCabinetInput').value = '';
+  document.getElementById('addCabinetError').textContent = '';
+  document.getElementById('saveNewCabinetBtn').disabled = true;
+  document.getElementById('saveNewCabinetBtn').textContent = 'Save';
+  document.getElementById('addCabinetBtn').style.display = 'none';
+  document.getElementById('newCabinetInput').focus();
+}
+
+function hideAddCabinetForm() {
+  document.getElementById('addCabinetForm').style.display = 'none';
+  document.getElementById('addCabinetBtn').style.display = '';
+}
+
+function validateNewCabinetInput() {
+  const val = document.getElementById('newCabinetInput').value.trim();
+  document.getElementById('saveNewCabinetBtn').disabled = !val;
+  document.getElementById('addCabinetError').textContent = '';
+}
+
+async function saveNewCabinet() {
+  const name = document.getElementById('newCabinetInput').value.trim();
+  const errEl = document.getElementById('addCabinetError');
+  if (!name) return;
+
+  if (cabinets.some(c => c.toLowerCase() === name.toLowerCase())) {
+    errEl.textContent = 'A cabinet with that name already exists';
+    return;
+  }
+
+  const btn = document.getElementById('saveNewCabinetBtn');
+  btn.disabled = true;
+  btn.textContent = 'Saving...';
+
+  try {
+    await sbFetch('/rest/v1/cabinets', {
+      method: 'POST',
+      headers: { 'Prefer': 'return=minimal' },
+      body: JSON.stringify({ name })
+    });
+    cabinets.push(name);
+    hideAddCabinetForm();
+    renderCabinetList();
+    populateCabinetSelect(document.getElementById('editCabinet')?.value || cabinets[0]);
+  } catch(e) {
+    errEl.textContent = 'Save failed: ' + e.message;
+    btn.disabled = false;
+    btn.textContent = 'Save';
+  }
+}
+
+function showRenameCabinetForm(index) {
+  cabinets.forEach((_, i) => {
+    if (i !== index) hideRenameCabinetForm(i);
+  });
+  document.getElementById('cabinet-view-' + index).style.display = 'none';
+  document.getElementById('cabinet-edit-' + index).style.display = 'flex';
+  document.getElementById('rename-cabinet-error-' + index).textContent = '';
+  const input = document.getElementById('rename-cabinet-input-' + index);
+  input.focus();
+  input.select();
+}
+
+function hideRenameCabinetForm(index) {
+  const viewEl = document.getElementById('cabinet-view-' + index);
+  const editEl = document.getElementById('cabinet-edit-' + index);
+  if (!viewEl || !editEl) return;
+  viewEl.style.display = 'flex';
+  editEl.style.display = 'none';
+}
+
+function validateRenameCabinetInput(index) {
+  const val = document.getElementById('rename-cabinet-input-' + index).value.trim();
+  document.getElementById('rename-cabinet-save-btn-' + index).disabled = !val;
+  document.getElementById('rename-cabinet-error-' + index).textContent = '';
+}
+
+async function saveRenameCabinet(index, oldName) {
+  const newName = document.getElementById('rename-cabinet-input-' + index).value.trim();
+  const errEl = document.getElementById('rename-cabinet-error-' + index);
+  if (!newName) return;
+
+  if (newName === oldName) {
+    hideRenameCabinetForm(index);
+    return;
+  }
+
+  const isDifferentCabinet = cabinets.some((c, i) => i !== index && c.toLowerCase() === newName.toLowerCase());
+  if (isDifferentCabinet) {
+    errEl.textContent = 'A cabinet with that name already exists';
+    return;
+  }
+
+  const btn = document.getElementById('rename-cabinet-save-btn-' + index);
+  btn.disabled = true;
+  btn.textContent = 'Saving...';
+
+  let cabinetsPatched = false;
+  try {
+    await sbFetch('/rest/v1/cabinets?name=eq.' + encodeURIComponent(oldName), {
+      method: 'PATCH',
+      headers: { 'Prefer': 'return=minimal' },
+      body: JSON.stringify({ name: newName })
+    });
+    cabinetsPatched = true;
+    await sbFetch('/rest/v1/inventory_items?cabinet=eq.' + encodeURIComponent(oldName), {
+      method: 'PATCH',
+      headers: { 'Prefer': 'return=minimal' },
+      body: JSON.stringify({ cabinet: newName })
+    });
+    cabinets[index] = newName;
+    items.forEach(item => {
+      if (item.cabinet === oldName) item.cabinet = newName;
+    });
+    renderCabinetList();
+    renderAdminTable();
+    renderInventory();
+    populateCabinetSelect(document.getElementById('editCabinet')?.value || cabinets[0]);
+  } catch(e) {
+    if (cabinetsPatched) {
+      try {
+        await sbFetch('/rest/v1/cabinets?name=eq.' + encodeURIComponent(newName), {
+          method: 'PATCH',
+          headers: { 'Prefer': 'return=minimal' },
+          body: JSON.stringify({ name: oldName })
+        });
+        errEl.textContent = 'Save failed and was rolled back. Please try again.';
+      } catch(revertErr) {
+        errEl.textContent = 'Save partially failed — please reload the page to verify data.';
+      }
+    } else {
+      errEl.textContent = 'Save failed: ' + e.message;
+    }
+    btn.disabled = false;
+    btn.textContent = 'Save';
+  }
+}
+
 function renderAdminTable() {
   const search = document.getElementById('adminSearch').value.toLowerCase();
   const cat = document.getElementById('adminCatFilter').value;
@@ -2006,12 +2244,13 @@ function renderAdminTable() {
 
   wrap.innerHTML = `<div class="panel"><div class="panel-body" style="overflow-x:auto">
     <table class="admin-table">
-      <thead><tr><th>Item</th><th>Category</th><th>Vendor</th><th>Par</th><th>Actions</th></tr></thead>
+      <thead><tr><th>Item</th><th>Category</th><th>Vendor</th><th>Cabinet</th><th>Par</th><th>Actions</th></tr></thead>
       <tbody>
         ${filtered.map(item => `<tr>
           <td style="font-weight:500">${item.name}</td>
           <td><span style="font-size:11px;color:var(--text-muted)">${item.category}</span></td>
           <td>${vendorBadge(item.vendor)}</td>
+          <td>${vendorBadge(item.cabinet)}</td>
           <td><span class="tag tag-other">${item.par}</span></td>
           <td>
             <button class="edit-btn" onclick="editItem('${item.id}')">Edit</button>
@@ -2029,6 +2268,7 @@ function showAddItem() {
   document.getElementById('editName').value = '';
   document.getElementById('editCategory').value = 'Spirits';
   populateVendorSelect(vendors[0] || '—');
+  populateCabinetSelect('—');
   document.getElementById('editPar').value = '';
   document.getElementById('modalError').textContent = '';
   document.getElementById('itemModal').style.display = 'flex';
@@ -2042,6 +2282,7 @@ function editItem(id) {
   document.getElementById('editName').value = item.name;
   document.getElementById('editCategory').value = item.category;
   populateVendorSelect(item.vendor || '—');
+  populateCabinetSelect(item.cabinet || '—');
   document.getElementById('editPar').value = item.par;
   document.getElementById('modalError').textContent = '';
   document.getElementById('itemModal').style.display = 'flex';
@@ -2056,6 +2297,7 @@ async function saveItemAdmin() {
   const name = document.getElementById('editName').value.trim();
   const category = document.getElementById('editCategory').value;
   const vendor = document.getElementById('editVendor').value;
+  const cabinet = document.getElementById('editCabinet').value;
   const par = document.getElementById('editPar').value.trim();
 
   if (!name) { document.getElementById('modalError').textContent = 'Name is required'; return; }
@@ -2064,7 +2306,7 @@ async function saveItemAdmin() {
   const isNew = !id;
   const newId = id || (category.charAt(0).toLowerCase() + 'custom_' + Date.now());
 
-  const record = { id: newId, name, category, vendor, par, updated_at: new Date().toISOString() };
+  const record = { id: newId, name, category, vendor, cabinet, par, updated_at: new Date().toISOString() };
 
   try {
     if (isNew) {
@@ -2074,13 +2316,13 @@ async function saveItemAdmin() {
       // Check if already in inventory_items table
       const existing = await sbFetch('/rest/v1/inventory_items?id=eq.' + encodeURIComponent(id) + '&select=id');
       if (existing && existing.length > 0) {
-        await sbFetch('/rest/v1/inventory_items?id=eq.' + encodeURIComponent(id), { method: 'PATCH', body: JSON.stringify({ name, category, vendor, par, updated_at: new Date().toISOString() }) });
+        await sbFetch('/rest/v1/inventory_items?id=eq.' + encodeURIComponent(id), { method: 'PATCH', body: JSON.stringify({ name, category, vendor, cabinet, par, updated_at: new Date().toISOString() }) });
       } else {
         // First time editing a default item — insert it into DB so it becomes tracked
         await sbFetch('/rest/v1/inventory_items', { method: 'POST', body: JSON.stringify(record) });
       }
       const item = items.find(i => i.id === id);
-      if (item) Object.assign(item, { name, category, vendor, par });
+      if (item) Object.assign(item, { name, category, vendor, cabinet, par });
     }
     closeModal();
     renderAdminTable();
@@ -2127,11 +2369,12 @@ async function loadCustomItems() {
     rows.forEach(row => {
       const existing = items.find(i => i.id === row.id);
       if (!existing) {
-        items.push({ id: row.id, name: row.name, category: row.category, vendor: row.vendor || '—', par: row.par, onHand: null });
+        items.push({ id: row.id, name: row.name, category: row.category, vendor: row.vendor || '—', cabinet: row.cabinet || '—', par: row.par, onHand: null });
       } else {
-        // Always update par/vendor/name from DB — DB is source of truth for admin changes
+        // Always update par/vendor/cabinet/name from DB — DB is source of truth for admin changes
         existing.par = row.par;
         existing.vendor = row.vendor || '—';
+        existing.cabinet = row.cabinet || '—';
         existing.name = row.name;
         existing.category = row.category;
       }
@@ -2255,6 +2498,7 @@ function startApp(session) {
   renderCocktails();
   (async () => {
     await loadVendors();
+    await loadCabinets();
     await loadCustomItems();
     await loadState();
   })();
