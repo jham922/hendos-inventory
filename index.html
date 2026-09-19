@@ -73,6 +73,8 @@
   }
   .nav-item .nav-icon { font-size: 20px; line-height: 1; }
   .nav-item.active { color: var(--amber); }
+  .rcv-label { display:block; color:var(--text-muted); font-size:11px; margin-bottom:4px; }
+  .rcv-input { background:var(--surface2); border:1px solid var(--border); color:#fff; border-radius:6px; padding:8px; font-size:14px; }
 
   /* MAIN */
   main { padding: 16px; max-width: 1400px; margin: 0 auto; }
@@ -95,6 +97,8 @@
   .inv-card-info { flex: 1; min-width: 0; }
   .inv-card-name { font-weight: 600; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .inv-card-par { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .inv-card-recv { font-size: 12px; color: var(--text-muted); margin-top: 2px; font-family: 'DM Mono', monospace; }
+  .inv-card-recv strong { color: var(--green); }
   .inv-card-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex-shrink: 0; }
   .inv-card-status { display: flex; align-items: center; gap: 6px; }
 
@@ -460,6 +464,8 @@
   <div class="tab" onclick="showTab('order')" id="dtab-order">🛒 Order Dashboard</div>
   <div class="tab" onclick="showTab('cocktails')" id="dtab-cocktails">🍹 Cocktail Builds</div>
   <div class="tab" onclick="showTab('toast')" id="dtab-toast">📊 Toast POS</div>
+  <div class="tab" onclick="showTab('receiving')" id="dtab-receiving">📦 Receiving</div>
+  <div class="tab" onclick="showTab('variance')" id="dtab-variance">📉 Variance</div>
   <div class="tab" onclick="showTab('history')" id="dtab-history">🕘 History</div>
   <div class="tab" onclick="showTab('admin')" id="dtab-admin">⚙️ Admin</div>
 </div>
@@ -477,6 +483,12 @@
   </button>
   <button class="nav-item" onclick="showTab('toast')" id="nav-toast">
     <span class="nav-icon">📊</span>Toast
+  </button>
+  <button class="nav-item" onclick="showTab('receiving')" id="nav-receiving">
+    <span class="nav-icon">📦</span>Receive
+  </button>
+  <button class="nav-item" onclick="showTab('variance')" id="nav-variance">
+    <span class="nav-icon">📉</span>Variance
   </button>
   <button class="nav-item" onclick="showTab('history')" id="nav-history">
     <span class="nav-icon">🕘</span>History
@@ -541,6 +553,68 @@
     <div class="upload-success" id="uploadSuccess"></div>
   </div>
   <div id="toastResults"></div>
+</div>
+
+<!-- ===== RECEIVING TAB ===== -->
+<div id="tab-receiving" style="display:none">
+  <div class="controls" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+    <h3 style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:2px;color:var(--gold);margin:0">Received Stock</h3>
+    <span style="color:var(--text-muted);font-size:12px" id="receivingMeta"></span>
+    <label style="font-size:12px;color:var(--text-muted);display:flex;align-items:center;gap:6px">
+      Show
+      <select id="rcvWindow" class="rcv-input" onchange="setReceivingWindow(this.value)" style="width:auto;padding:6px 8px">
+        <option value="28" selected>last 4 weeks</option>
+        <option value="56">last 8 weeks</option>
+        <option value="90">last 3 months</option>
+        <option value="0">everything</option>
+      </select>
+    </label>
+    <button class="action-btn" onclick="loadReceiving()" style="margin-left:auto">↻ Refresh</button>
+    <button class="action-btn" onclick="toggleManualReceipt()">+ Add receipt</button>
+  </div>
+  <div id="manualReceipt" class="panel" style="display:none">
+    <div class="panel-header"><h3>Add a receipt (paper invoices &amp; small vendors)</h3></div>
+    <div class="panel-body" style="padding:16px">
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+        <div><label class="rcv-label">Vendor</label><select id="rcvVendor" class="rcv-input"></select></div>
+        <div><label class="rcv-label">Delivery date</label><input id="rcvDate" type="date" class="rcv-input"></div>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-top:12px">
+        <div style="flex:1;min-width:220px"><label class="rcv-label">Item</label><input id="rcvItem" class="rcv-input" list="rcvItemList" placeholder="start typing…" oninput="rcvItemPicked()"><datalist id="rcvItemList"></datalist></div>
+        <div><label class="rcv-label">Qty</label><input id="rcvQty" type="number" step="0.01" class="rcv-input" style="width:90px"></div>
+        <div><label class="rcv-label">Counted in</label><input id="rcvUnitHint" class="rcv-input" style="width:130px;background:var(--surface-2,#171a21);color:var(--text-muted)" readonly value="pick an item"></div>
+        <button class="action-btn" onclick="addReceiptLine()">＋ Add line</button>
+      </div>
+      <div id="rcvDraftWrap" style="display:none;margin-top:14px">
+        <div style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--text-dim);margin-bottom:6px">Lines on this receipt</div>
+        <div id="rcvDraftList"></div>
+        <div style="margin-top:10px;display:flex;gap:10px;align-items:center">
+          <button class="action-btn" onclick="saveReceiptDraft()">Save receipt</button>
+          <button class="filter-btn" onclick="clearReceiptDraft()">Clear</button>
+        </div>
+      </div>
+      <div id="rcvStatus" style="font-size:12px;color:var(--text-muted);margin-top:10px"></div>
+      <div style="font-size:12px;color:var(--text-dim);margin-top:8px">
+        Quantities are recorded in each item's own counting unit — the same unit you count it in —
+        so paper deliveries line up with the Toast/Variance maths automatically.
+      </div>
+    </div>
+  </div>
+  <div id="receivingBody"></div>
+</div>
+
+<!-- ===== VARIANCE TAB ===== -->
+<div id="tab-variance" style="display:none">
+  <div class="controls" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+    <h3 style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:2px;color:var(--gold);margin:0">Variance · Shrink</h3>
+    <span style="color:var(--text-muted);font-size:12px" id="varianceMeta"></span>
+    <label style="font-size:12px;color:var(--text-muted);display:flex;align-items:center;gap:6px;margin-left:auto;cursor:pointer">
+      <input type="checkbox" id="varianceOnlyFlags" onchange="renderVariance()" checked> only flagged
+    </label>
+    <button class="action-btn" onclick="loadVariance()">↻ Refresh</button>
+  </div>
+  <div id="varianceSummary"></div>
+  <div id="varianceBody"></div>
 </div>
 
 <!-- ===== HISTORY TAB ===== -->
@@ -694,7 +768,71 @@ const COCKTAILS = [
   { name: "Hendo Spresso", ingredients: [
     {qty:"1.5oz", ing:"Well Vodka (Three Olives)"},{qty:"0.25oz", ing:"Simple Syrup"},
     {qty:"0.5oz", ing:"Mr. Black Coffee"},{qty:"1.5oz", ing:"Espresso"},{qty:"1 peel", ing:"Orange"}
-  ], serve:"Coupe, espresso beans" }
+  ], serve:"Coupe, espresso beans"},
+  { name: "Heavy Favorite", ingredients: [
+    {qty:"2oz", ing:"Rittenhouse Rye"},{qty:"0.5oz", ing:"Trader Vic's Macadamia"},
+    {qty:"0.75oz", ing:"Banana Liquer"},{qty:"0.25oz", ing:"Orgeat Syrup"},
+    {qty:"3 dashes", ing:"Angostura Bitters"}
+  ], serve:"Rocks glass, large ice; Old Fashioned build, stirred; garnish cinnamon stick" },
+  { name: "Clean Finish", ingredients: [
+    {qty:"2oz", ing:"Roku"},{qty:"0.5oz", ing:"St. Germain"},
+    {qty:"0.5oz", ing:"Lemon Juice"},{qty:"0.25oz", ing:"Lychee Syrup"},
+    {qty:"0.25oz", ing:"Orgeat Syrup"},{qty:"6", ing:"Blueberries"},{qty:"1oz", ing:"Aquafaba"}
+  ], serve:"Coupe; muddle blueberries in tin, add rest, shake, fine strain; garnish lemon + blueberry flag" },
+  { name: "Still Standing", ingredients: [
+    {qty:"1.5oz", ing:"Buffalo Trace"},{qty:"0.25oz", ing:"Pear Liquer"},
+    {qty:"0.25oz", ing:"Planteray OFTD"},{qty:"0.5oz", ing:"Rosemary Syrup"},
+    {qty:"0.75oz", ing:"Lemon Juice"},{qty:"0.25oz", ing:"Orgeat Syrup"},
+    {qty:"2 dashes", ing:"Angostura Bitters"}
+  ], serve:"Shake all, fine strain; garnish rosemary sprig" },
+  { name: "Fuego Fizz", ingredients: [
+    {qty:"1.5oz", ing:"Pueblo Viejo Blanco"},{qty:"0.5oz", ing:"Aperol"},
+    {qty:"0.5oz", ing:"Pineapple Shrub"},{qty:"0.5oz", ing:"Lime Juice"},
+    {qty:"0.5oz", ing:"Agave Syrup"},{qty:"top", ing:"Soda Water"}
+  ], serve:"Shake, strain into Rocks glass, top with soda" },
+  { name: "The Walkout", ingredients: [
+    {qty:"1.25oz", ing:"Coruba Dark Rum"},{qty:"1oz", ing:"Trader Vic's Macadamia"},
+    {qty:"0.5oz", ing:"Coconut Syrup"},{qty:"0.5oz", ing:"Lime Juice"},
+    {qty:"0.5oz", ing:"Pineapple Juice"}
+  ], serve:"Collins glass; shake with passes of grated nutmeg, fine strain; garnish grated nutmeg" },
+  { name: "Corner Girl", ingredients: [
+    {qty:"1.25oz", ing:"Svedka Peach"},{qty:"0.75oz", ing:"Svedka Citrus"},
+    {qty:"1oz", ing:"Pear Oleo Saccharum"},{qty:"1oz", ing:"Lemon Juice"},
+    {qty:"0.5oz", ing:"Triple Sec"},{qty:"2 dashes", ing:"Angostura Bitters"},
+    {qty:"1 dash", ing:"Orange Bitters"}
+  ], serve:"Collins glass; shake all, fine strain; garnish dehydrated pear" },
+  { name: "Smoke Break", ingredients: [
+    {qty:"1.5oz", ing:"Del Maguey Mezcal"},{qty:"0.5oz", ing:"Ancho Reyes Chile"},
+    {qty:"0.5oz", ing:"Cabernet Syrup"},{qty:"0.5oz", ing:"Lime Juice"},
+    {qty:"3 dashes", ing:"Chocolate Bitters"}
+  ], serve:"Rocks glass; shake all, strain; garnish dehydrated blood orange" },
+  { name: "Split Decision", ingredients: [
+    {qty:"1oz", ing:"Buffalo Trace"},{qty:"1oz", ing:"Rittenhouse Rye"},
+    {qty:"0.75oz", ing:"Lemon Juice"},{qty:"1oz", ing:"Aquafaba"},
+    {qty:"0.5oz", ing:"Agave Syrup"},{qty:"0.5oz", ing:"Cabernet Syrup"}
+  ], serve:"Coupe; shake all, fine strain, layer cabernet float with bar spoon; no garnish" },
+  { name: "Hazy Vision", ingredients: [
+    {qty:"1.5oz", ing:"Roku"},{qty:"0.5oz", ing:"Lime Juice"},
+    {qty:"0.5oz", ing:"Simple Syrup"},{qty:"1oz", ing:"Grapefruit Juice"},
+    {qty:"2 dashes", ing:"Grapefruit Bitters"}
+  ], serve:"2oz Crazy Hazy into Collins glass, shake rest with ice, strain in, top with 2oz Crazy Hazy; no garnish" },
+  { name: "Old Fashioned", ingredients: [
+    {qty:"2oz", ing:"Buffalo Trace"},{qty:"0.25oz", ing:"Simple Syrup"},
+    {qty:"3 dashes", ing:"Angostura Bitters"}
+  ], serve:"Rocks glass, orange peel (pour spec per Jennifer — confirm garnish)" },
+  { name: "HH Old Fashioned", ingredients: [
+    {qty:"2oz", ing:"Old Forester"},{qty:"0.25oz", ing:"Simple Syrup"},
+    {qty:"3 dashes", ing:"Angostura Bitters"}
+  ], serve:"Happy hour build — 2oz Old Forester (spec per Jennifer)" },
+  { name: "Espresso Martini", ingredients: [
+    {qty:"1.5oz", ing:"Well Vodka (Wheatley)"},{qty:"0.5oz", ing:"Mr Black Coffee Liqueur"}
+  ], serve:"Coupe; espresso beans (espresso not tracked in inventory)" },
+  { name: "Lemon Drop", ingredients: [
+    {qty:"2oz", ing:"Well Vodka (Wheatley)"}
+  ], serve:"2oz well vodka (spec per Jennifer — lemon/sugar not tracked)" },
+  { name: "HH Blackberry Smash", ingredients: [
+    {qty:"1.5oz", ing:"Svedka Citrus"}
+  ], serve:"Happy hour build — 1.5oz Svedka Citrus (spec per Jennifer)" }
 ];
 
 const DEFAULT_ITEMS = [
@@ -748,8 +886,8 @@ const DEFAULT_ITEMS = [
   {id:"s15",name:"Patron Silver",par:"6 bottles",category:"Spirits",vendor:"Southern",onHand:null},
   {id:"s51",name:"Peach Schnapps",par:"1 case",category:"Spirits",vendor:"Southern",onHand:null},
   {id:"s3",name:"Pinnacle Citrus",par:"1 case",category:"Spirits",vendor:"Southern",onHand:null},
-  {id:"s12",name:"Sauza Blanco",par:"1 case",category:"Spirits",vendor:"Southern",onHand:null},
-  {id:"s11",name:"Sauza Reposado",par:"2 cases",category:"Spirits",vendor:"Southern",onHand:null},
+  {id:"s12",name:"Pueblo Viejo Blanco",par:"1 case",category:"Spirits",vendor:"Gate City",onHand:null},
+  {id:"s11",name:"Corazon Reposado",par:"2 cases",category:"Spirits",vendor:"Gate City",onHand:null},
   {id:"s44",name:"Triple Sec",par:"1 case",category:"Spirits",vendor:"Southern",onHand:null},
   {id:"s28",name:"u4rik Anejo",par:"2 cases",category:"Spirits",vendor:"—",onHand:null},
   {id:"s56",name:"Vermouth (Dry)",par:"3 bottles",category:"Spirits",vendor:"Southern",onHand:null},
@@ -988,6 +1126,25 @@ async function saveItem(id, val, updatedBy) {
         body: JSON.stringify({ id, on_hand: val, updated_by: updatedBy, updated_at: now })
       });
     }
+    // Append a snapshot so variance can compare one count against the next.
+    // Skipped when the value hasn't changed (the first edit of a session always records).
+    try {
+      if (lastHistSnapshot[id] !== String(val)) {
+        await sbFetch('/rest/v1/count_history', {
+          method: 'POST',
+          body: JSON.stringify({
+            item_id: id,
+            on_hand: val === null ? null : String(val),
+            counted_at: now,
+            counted_by: updatedBy,
+            session_date: now.slice(0, 10)
+          })
+        });
+        lastHistSnapshot[id] = String(val);
+      }
+    } catch (e) {
+      console.warn('count history append failed:', e);
+    }
     showSyncStatus('synced');
   } catch(e) {
     console.error('Save failed:', e);
@@ -1036,15 +1193,17 @@ async function pollUpdates() {
       const item = items.find(i => i.id === row.id);
       if (item) {
         // Update par/vendor/name if changed
-        if (item.par !== row.par || item.vendor !== row.vendor || item.name !== row.name) {
+        if (item.par !== row.par || item.vendor !== row.vendor || item.name !== row.name
+            || Number(item.bottleSizeOz || 0) !== Number(row.bottle_size_oz || 0)) {
           item.par = row.par;
           item.vendor = row.vendor || '—';
           item.name = row.name;
+          item.bottleSizeOz = row.bottle_size_oz;
           itemsChanged = true;
         }
       } else {
         // New item added via admin
-        items.push({ id: row.id, name: row.name, category: row.category, vendor: row.vendor || '—', par: row.par, onHand: null });
+        items.push({ id: row.id, name: row.name, category: row.category, vendor: row.vendor || '—', par: row.par, onHand: null, bottleSizeOz: row.bottle_size_oz });
         itemsChanged = true;
       }
     });
@@ -1103,6 +1262,20 @@ function parUnit(par) {
   if (p.includes('bib')) return { tag: 'bib', label: '🥤 ' + par };
   if (p.includes('flat')) return { tag: 'flat', label: '🍓 ' + par };
   return { tag: 'other', label: par };
+}
+
+function itemUnitWord(par) {
+  const tag = parUnit(par).tag;
+  return { keg: 'kegs', case: 'cases', bottle: 'bottles', bib: 'bib', flat: 'flats' }[tag] || '';
+}
+
+// amount received (last 7 days), expressed in the item's counting unit
+function receivedCellHTML(item) {
+  const q = receivedByItem[item.id];
+  if (!q) return '<span style="color:var(--text-muted)">—</span>';
+  const n = fmtNum(q, Number(q) % 1 ? 2 : 0);
+  const u = itemUnitWord(item.par);
+  return `<span title="received in the last 7 days" style="color:var(--green);font-family:'DM Mono',monospace;font-weight:600">+${n}</span> <span style="color:var(--text-muted);font-size:11px">${u}</span>`;
 }
 
 function stockStatus(item) {
@@ -1232,6 +1405,7 @@ function renderInventory() {
               <div class="inv-card-info">
                 <div class="inv-card-name">${item.name}</div>
                 <div class="inv-card-par"><span class="tag tag-${pu.tag}">${pu.label}</span> ${vendorBadge(item.vendor)}</div>
+                ${receivedByItem[item.id] ? `<div class="inv-card-recv">Received: <strong>+${fmtNum(receivedByItem[item.id], Number(receivedByItem[item.id]) % 1 ? 2 : 0)} ${itemUnitWord(item.par)}</strong></div>` : ''}
               </div>
               <div class="inv-card-right">
                 <input type="number" inputmode="decimal" class="qty-input ${item.onHand !== null ? 'has-value' : ''}"
@@ -1251,7 +1425,7 @@ function renderInventory() {
         <div class="inv-table-wrap">
           <table class="inv-table">
             <thead><tr>
-              <th>Item</th><th>Vendor</th><th>Par</th><th>On Hand</th><th>Status</th><th>Stock</th>
+              <th>Item</th><th>Vendor</th><th>Par</th><th>On Hand</th><th>Received (7d)</th><th>Status</th><th>Stock</th>
             </tr></thead>
             <tbody>
               ${catItems.map(item => {
@@ -1267,6 +1441,7 @@ function renderInventory() {
                     onchange="handleCountInput(this,'${item.id}')"
                     ${userRole === 'readonly' ? 'disabled' : ''}
                   ></td>
+                  <td>${receivedCellHTML(item)}</td>
                   <td>${statusBadge(status)}</td>
                   <td>${stockBarHTML(item)}</td>
                 </tr>`;
@@ -1393,13 +1568,71 @@ const LIQUOR_POUR_OZ = 1.5;
 const WINE_GLASSES_PER_BOTTLE = 4;
 const WINE_KEG_POUR_OZ = 6; // kegged wine (e.g. sangria on tap) pours by the oz, not by the bottle
 const BOTTLE_OZ = 25.36; // standard 750ml bottle, used only for the "≈ bottles" display column
+const KEG_OZ = 1984; // full-size (1/2 barrel) keg — draft usage is shown in kegs, never bottles
+const BUCKET_MULTIPLIER = 5; // any Toast item named "... Bucket" = 5 bottles/cans of the base product
+
+// ------------------------------------------------------------
+// TOAST NAME MAPPINGS (confirmed with Jennifer, Sep 2026)
+// Toast rings items up under names that don't match this app's inventory items
+// or recipe names. These are the exceptions that can't be inferred from the text.
+// Written as raw Toast names — the lookup keys are normalized at load time below,
+// so "20oz Cali Sqeeze" and "HH House Red Wine" are found without hand-normalizing.
+// ------------------------------------------------------------
+const TOAST_ALIAS_RAW = {
+  "Coors Bucket": "Coors Light Bottles",        // bucket rule multiplies by 5
+  "20oz Cali Sqeeze": "Cali Squeeze",
+  "20oz Crazy Hazy": "Hazy Ex",
+  "Crazy Hazy": "Hazy Ex",
+  "HH Prolific Pilsner": "Prolific West Coast Pilsner",
+  "Sam Adams Seasonal": "Sam Seasonal",
+  "20oz Mason DIPA": "Mason Double Hazy",
+  "Surfside Strawberry": "Surfside Cans",
+  "High Noon Black Cherry": "High Noon Cherry",
+  "El Tesoro Blanco": "El Tosoro Blanco",
+  "El Tesoro Reposado": "El Tosoro Reposado",
+  "U4rik A?jeo": "u4rik Anejo",
+  "U4Rik Silver": "U4rik Blanco",
+  "Free Will Vodka": "Well Vodka (Wheatley)",
+  "Well Gin": "Beefeater",
+  "Well Tequila": "Pueblo Viejo Blanco",
+  "Well Whiskey": "Jack Daniel's",
+  "Kim Crawford Sauv Blanc": "Kim Crawford Sauvignon Blanc",
+  "Ferrari Carrano Pinot Grigio": "Ferrari Pinot Grigio",
+  "House White": "Sycamore Lane Chardonnay",
+  "HH House White Wine": "Sycamore Lane Chardonnay",
+  "House Red": "Sycamore Lane Cabernet",
+  "HH House Red Wine": "Sycamore Lane Cabernet",
+  "Freixenet Cordon Negro Brut Splits": "Freixenet Cava Splits",
+  "Sea Glass Pinot Noir": "Seaglass Pinot Noir",
+  "Seaglass Reisling": "Seaglass Riesling",
+  "Peltzer Syrah Ros?": "Peltzer Syrah Rose",
+  "Doffo Cab Sav": "Doffo Cabernet",
+  "Rasp Ice Tea": "Rasp Tea",
+  "Iron Will Reserve": "Iron Will Reserve",
+  "The Contender": "Fuego Fizz"                 // same build, different menu name
+};
+
+// Items that are not tracked in inventory (or not worth tracking) — skipped silently.
+const TOAST_IGNORE_RAW = [
+  "Sample", "Mason Red Ale", "20oz Mason Red", "Happy Dad Seltzer",
+  "Angry Orchard", "20oz Angry Orchard", "Hendo's Golden Ale", "20oz Hendo's Golden Ale",
+  "Casa Azul blanco", "Ros? Draft Glass", "Unsweet Ice Tea",
+  "Bottled Water - Still", "Bottled Water- Sparkling", "Monster", "Milk",
+  "mango green tea", "Kids Chocolate Milk", "Club Soda"
+];
+
+const TOAST_ALIASES = {};
+Object.keys(TOAST_ALIAS_RAW).forEach(k => { TOAST_ALIASES[normalizeName(k)] = TOAST_ALIAS_RAW[k]; });
+const TOAST_IGNORES = new Set(TOAST_IGNORE_RAW.map(normalizeName));
 
 // Item names/cocktail names are matched against Toast menu item text loosely —
 // Toast exports don't carry any ID linking sales rows back to this app's items or cocktails.
 function normalizeName(s) {
   return (s || '')
     .toLowerCase()
-    .replace(/[®™'’.,()]/g, '')
+    .replace(/n\/a/g, 'na')          // "Athletic N/A IPA" rings up as "Athletic NA IPA" in inventory
+    .replace(/[^a-z0-9\s]/g, '')     // strip quotes, punctuation, accents, "?" encoding artifacts
+    .replace(/\b\d+\s*oz\b/g, ' ')   // size prefixes: "20oz El Hendo" -> "El Hendo"
     .replace(/\b(draft|glass|bottle|btl|can|neat|rocks|single|double|shot|pour|of)\b/g, '')
     .replace(/\s+/g, ' ')
     .trim();
@@ -1452,8 +1685,16 @@ function computeTheoreticalUsage(sales, draftOz) {
   }
 
   sales.forEach(({ menuItem, qtySold }) => {
-    const normName = normalizeName(menuItem);
+    let normName = normalizeName(menuItem);
     if (!normName || !qtySold) return;
+    if (TOAST_IGNORES.has(normName)) return;              // not tracked (water, milk, discontinued...)
+
+    // "Coors Bucket" etc. = BUCKET_MULTIPLIER bottles/cans of the base product
+    const isBucket = /\bbucket\b/i.test(menuItem);
+    const qty = qtySold * (isBucket ? BUCKET_MULTIPLIER : 1);
+
+    const alias = TOAST_ALIASES[normName];                 // Toast name -> inventory/recipe name
+    if (alias) normName = normalizeName(alias);
 
     const cocktail = findCocktailMatch(normName);
     if (cocktail) {
@@ -1462,7 +1703,7 @@ function computeTheoreticalUsage(sales, draftOz) {
         if (oz == null) return; // non-liquid garnish (dashes, slices, "top", etc.) — not tracked
         const item = findItemMatch(normalizeName(ing.ing));
         if (!item) { unmatchedIngredients.add(ing.ing); return; }
-        bump(item, classifyItem(item), 'oz', qtySold * oz);
+        bump(item, classifyItem(item), 'oz', qty * oz);
       });
       return;
     }
@@ -1470,11 +1711,11 @@ function computeTheoreticalUsage(sales, draftOz) {
     const item = findItemMatch(normName);
     if (item) {
       const kind = classifyItem(item);
-      if (kind === 'spirit') bump(item, kind, 'oz', qtySold * LIQUOR_POUR_OZ);
-      else if (kind === 'wine') bump(item, kind, 'glasses', qtySold);
-      else if (kind === 'wine_keg') bump(item, kind, 'oz', qtySold * WINE_KEG_POUR_OZ);
-      else if (kind === 'draft_beer') bump(item, kind, 'oz', qtySold * draftOz);
-      else if (kind === 'bottled_beer') bump(item, kind, 'units', qtySold);
+      if (kind === 'spirit') bump(item, kind, 'oz', qty * LIQUOR_POUR_OZ);
+      else if (kind === 'wine') bump(item, kind, 'glasses', qty);
+      else if (kind === 'wine_keg') bump(item, kind, 'oz', qty * WINE_KEG_POUR_OZ);
+      else if (kind === 'draft_beer') bump(item, kind, 'oz', qty * draftOz);
+      else if (kind === 'bottled_beer') bump(item, kind, 'units', qty);
       return;
     }
 
@@ -1502,7 +1743,7 @@ function exportTheoreticalUsageCSV() {
     if (u.kind === 'spirit') rows.push([u.item.name, 'Spirits', fmtNum(u.oz, 1), 'oz']);
     else if (u.kind === 'wine') rows.push([u.item.name, 'Wine', fmtNum(u.glasses, 0), 'glasses']);
     else if (u.kind === 'wine_keg') rows.push([u.item.name, 'Kegged Wine', fmtNum(u.oz, 1), `oz (${WINE_KEG_POUR_OZ}oz pours)`]);
-    else if (u.kind === 'draft_beer') rows.push([u.item.name, 'Draft Beer', fmtNum(u.oz, 0), `oz (${draftPourOz}oz pours)`]);
+    else if (u.kind === 'draft_beer') rows.push([u.item.name, 'Draft Beer', fmtNum(u.oz, 0), `oz (${draftPourOz}oz pours) · ${fmtNum(u.oz / KEG_OZ, 2)} kegs`]);
     else if (u.kind === 'bottled_beer') rows.push([u.item.name, 'Bottled/Canned Beer', fmtNum(u.units, 0), 'units']);
   });
   downloadCSV(rows, 'hendos_theoretical_usage_' + dateStr() + '.csv');
@@ -1515,22 +1756,22 @@ function renderUsageSections(usage, draftOzUsed) {
   const draft = usage.filter(u => u.kind === 'draft_beer').sort((a, b) => b.oz - a.oz);
   const bottled = usage.filter(u => u.kind === 'bottled_beer').sort((a, b) => b.units - a.units);
 
-  function section(title, rows, renderRow) {
+  function section(title, rows, renderRow, thirdCol = '≈ Bottles') {
     if (rows.length === 0) return '';
     return `<div class="panel">
       <div class="panel-header" onclick="togglePanel(this)"><h3>${title}</h3><span class="panel-toggle">▾</span></div>
       <div class="panel-body"><table class="inv-table">
-        <thead><tr><th>Item</th><th>Theoretical Usage</th><th>≈ Bottles</th></tr></thead>
+        <thead><tr><th>Item</th><th>Theoretical Usage</th><th>${thirdCol}</th></tr></thead>
         <tbody>${rows.map(renderRow).join('')}</tbody>
       </table></div>
     </div>`;
   }
 
   return `
-    ${section('Spirits — Theoretical Usage', spirits, u => `<tr><td>${escapeHtml(u.item.name)}</td><td>${fmtNum(u.oz, 1)} oz</td><td>${fmtNum(u.oz / BOTTLE_OZ, 2)}</td></tr>`)}
+    ${section('Spirits — Theoretical Usage', spirits, u => `<tr><td>${escapeHtml(u.item.name)}</td><td>${fmtNum(u.oz, 1)} oz</td><td>${fmtNum(u.oz / bottleOz(liveItem(u.item.id) || u.item), 2)}</td></tr>`)}
     ${section('Wine — Theoretical Usage', wines, u => `<tr><td>${escapeHtml(u.item.name)}</td><td>${fmtNum(u.glasses, 0)} glasses</td><td>${fmtNum(u.glasses / WINE_GLASSES_PER_BOTTLE, 2)}</td></tr>`)}
     ${section(`Kegged Wine — Theoretical Usage (${WINE_KEG_POUR_OZ}oz pours)`, keggedWines, u => `<tr><td>${escapeHtml(u.item.name)}</td><td>${fmtNum(u.oz, 1)} oz</td><td>—</td></tr>`)}
-    ${section(`Draft Beer — Theoretical Usage (${draftOzUsed}oz pours)`, draft, u => `<tr><td>${escapeHtml(u.item.name)}</td><td>${fmtNum(u.oz, 0)} oz</td><td>—</td></tr>`)}
+    ${section(`Draft Beer — Theoretical Usage (${draftOzUsed}oz pours)`, draft, u => `<tr><td>${escapeHtml(u.item.name)}</td><td>${fmtNum(u.oz, 0)} oz</td><td>${fmtNum(u.oz / KEG_OZ, 2)}</td></tr>`, '≈ Kegs (1,984 oz)')}
     ${section('Bottled/Canned Beer &amp; Seltzer — Units Sold', bottled, u => `<tr><td>${escapeHtml(u.item.name)}</td><td>${fmtNum(u.units, 0)} units</td><td>—</td></tr>`)}
   `;
 }
@@ -1838,10 +2079,488 @@ async function clearAll() {
 }
 
 // ============================================================
+// RECEIVING — what the vendors actually delivered
+// ============================================================
+let receivedRows = [];
+let mapIndex = {};         // "vendor|itemnum" -> vendor_item_map row
+let receivedByItem = {};   // item_id -> units received in the last 7 days
+
+async function loadReceiving() {
+  const el = document.getElementById('receivingBody');
+  if (!el) return;
+  el.innerHTML = '<div style="padding:20px;color:var(--text-muted)">Loading…</div>';
+  try {
+    receivedRows = await sbFetch('/rest/v1/received_items?select=*&order=delivery_date.desc,item_name.asc&limit=500');
+    const map = await sbFetch('/rest/v1/vendor_item_map?select=vendor,vendor_item_number,inventory_item_name,inventory_item_id,unit_factor&limit=600');
+    mapIndex = {};
+    map.forEach(m => { mapIndex[m.vendor + '|' + m.vendor_item_number] = m; });
+    computeReceivedByItem();
+    renderReceiving();
+    if (typeof renderInventory === 'function') renderInventory();
+  } catch (e) {
+    el.innerHTML = '<div style="padding:20px;color:var(--red)">Could not load receiving data: ' + escapeHtml(e.message) + '</div>';
+  }
+}
+
+function computeReceivedByItem() {
+  receivedByItem = {};
+  const cutoff = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
+  receivedRows.forEach(r => {
+    if (r.status !== 'confirmed' || !r.item_id) return;
+    if ((r.delivery_date || '') < cutoff) return;
+    receivedByItem[r.item_id] = (receivedByItem[r.item_id] || 0) + Number(r.qty_units || 0);
+  });
+}
+
+let receivingWindowDays = 28;   // how much delivery history the tab lists (0 = everything)
+
+function setReceivingWindow(v) {
+  receivingWindowDays = parseInt(v, 10) || 0;
+  renderReceiving();
+}
+
+function renderReceiving() {
+  const el = document.getElementById('receivingBody');
+  const meta = document.getElementById('receivingMeta');
+  if (!el) return;
+
+  const confirmed = receivedRows.filter(r => r.status === 'confirmed');
+  const unmapped = receivedRows.filter(r => r.status === 'needs_mapping');
+
+  // the tab lists only a recent window (older deliveries stay in the database —
+  // the variance maths needs them — but they don't need to be read every week)
+  const cutoff = receivingWindowDays > 0
+    ? new Date(Date.now() - receivingWindowDays * 86400000).toISOString().slice(0, 10)
+    : '';
+  const visible = cutoff ? receivedRows.filter(r => (r.delivery_date || '') >= cutoff) : receivedRows;
+  const hiddenCount = receivedRows.length - visible.length;
+
+  const byDate = [...new Set(visible.map(r => r.delivery_date))].sort().reverse();
+  if (meta) meta.textContent = visible.filter(r => r.status === 'confirmed').length + ' lines from ' + byDate.length + ' deliveries' +
+    (unmapped.length ? ' · ' + unmapped.length + ' need mapping' : '');
+
+  if (!visible.length) {
+    el.innerHTML = '<div class="empty-state"><div class="es-title">Nothing received yet</div><div>Invoices pulled from Proof and SipMarket will appear here.</div></div>';
+    return;
+  }
+
+  let html = '';
+
+  // unmatched lines need a decision before they count
+  if (unmapped.length) {
+    html += `<div class="panel"><div class="panel-header"><h3>⚠ Needs mapping (${unmapped.length})</h3><span class="panel-toggle">▾</span></div>
+      <div class="panel-body"><table class="inv-table"><thead><tr><th>Vendor item</th><th>Qty</th><th>Count as</th><th></th></tr></thead><tbody>`;
+    unmapped.slice(0, 30).forEach(r => {
+      const opts = items.map(i => `<option value="${escapeHtml(i.name)}">${escapeHtml(i.name)}</option>`).join('');
+      html += `<tr><td>${escapeHtml(r.vendor_description || '')}<div style="font-size:11px;color:var(--text-muted)">${escapeHtml(r.vendor)} · #${escapeHtml(r.vendor_item_number || '')}</div></td>
+        <td>${escapeHtml(String(r.qty))} ${escapeHtml(r.unit || '')}</td>
+        <td><select id="map-${escapeHtml(r.id)}" style="background:var(--surface2);border:1px solid var(--border);color:#fff;border-radius:6px;padding:6px;max-width:180px"><option value="">— pick item —</option>${opts}</select></td>
+        <td><button class="action-btn" onclick="saveLineMapping('${escapeHtml(r.id)}','${escapeHtml(r.vendor)}','${escapeHtml(r.vendor_item_number || '')}')">Save</button></td></tr>`;
+    });
+    html += `</tbody></table></div></div>`;
+  }
+
+  // deliveries, newest first
+  byDate.forEach(d => {
+    const dayRows = visible.filter(r => r.delivery_date === d);
+    const vendors = [...new Set(dayRows.map(r => r.vendor))];
+    vendors.forEach(v => {
+      const rows = dayRows.filter(r => r.vendor === v && r.status === 'confirmed');
+      const ignored = dayRows.filter(r => r.vendor === v && r.status === 'ignored').length;
+      if (!rows.length && !ignored) return;
+      const cost = rows.reduce((s, r) => s + Number(r.net_cost || 0), 0);
+      html += `<div class="panel collapsed"><div class="panel-header" onclick="togglePanel(this)">
+        <h3>${escapeHtml(d)} · ${escapeHtml(v)} · ${rows.length} lines${ignored ? ' (' + ignored + ' ignored)' : ''}${cost ? ' · $' + cost.toFixed(2) : ''}</h3>
+        <span class="panel-toggle">▾</span></div>
+        <div class="panel-body"><table class="inv-table"><thead><tr><th>Item</th><th>Received</th><th>As invoiced</th></tr></thead><tbody>`;
+      rows.sort((a, b) => (a.item_name || '').localeCompare(b.item_name || '')).forEach(r => {
+        html += `<tr><td>${escapeHtml(r.item_name || '')}</td>
+          <td>${fmtNum(Number(r.qty_units || 0), 0)} ${escapeHtml(r.unit || '')}</td>
+          <td style="color:var(--text-muted);font-size:12px">${escapeHtml(r.note || '')}</td></tr>`;
+      });
+      html += `</tbody></table></div></div>`;
+    });
+  });
+
+  if (hiddenCount) {
+    html += `<div style="color:var(--text-muted);font-size:12px;margin-top:14px;line-height:1.6">
+      ${hiddenCount} older line${hiddenCount === 1 ? '' : 's'} not listed — they're kept in the database, since the variance
+      history needs them. Switch <strong>Show</strong> above to look further back.
+    </div>`;
+  }
+
+  el.innerHTML = html;
+}
+
+async function saveLineMapping(rowId, vendor, itemNumber) {
+  const sel = document.getElementById('map-' + rowId);
+  if (!sel || !sel.value) return;
+  const item = items.find(i => i.name === sel.value);
+  if (!item) return;
+  try {
+    await sbFetch('/rest/v1/received_items?id=eq.' + rowId, {
+      method: 'PATCH',
+      body: JSON.stringify({ item_id: item.id, item_name: item.name, status: 'confirmed', qty_units: 0 })
+    });
+    const existing = mapIndex[vendor + '|' + itemNumber];
+    if (existing) {
+      await sbFetch(`/rest/v1/vendor_item_map?vendor=eq.${encodeURIComponent(vendor)}&vendor_item_number=eq.${encodeURIComponent(itemNumber)}`, {
+        method: 'PATCH', body: JSON.stringify({ inventory_item_id: item.id, inventory_item_name: item.name })
+      });
+    } else {
+      await sbFetch('/rest/v1/vendor_item_map', {
+        method: 'POST', body: JSON.stringify({ vendor: vendor, vendor_item_number: itemNumber, inventory_item_id: item.id, inventory_item_name: item.name, unit_factor: 1, unit_label: 'units' })
+      });
+    }
+    loadReceiving();
+  } catch (e) { alert('Mapping failed: ' + e.message); }
+}
+
+let rcvDraft = [];   // lines staged for the receipt being entered
+
+function rcvUnitFor(item) {
+  return itemUnitWord(item.par) || 'units';   // always the item's own counting unit
+}
+
+function toggleManualReceipt() {
+  const el = document.getElementById('manualReceipt');
+  el.style.display = el.style.display === 'none' ? '' : 'none';
+  if (el.style.display !== 'none') {
+    const vs = document.getElementById('rcvVendor');
+    vs.innerHTML = vendors.map(v => `<option>${escapeHtml(v)}</option>`).join('');
+    document.getElementById('rcvItemList').innerHTML = items.map(i => `<option value="${escapeHtml(i.name)}">`).join('');
+    if (!document.getElementById('rcvDate').value) {
+      document.getElementById('rcvDate').value = new Date().toISOString().slice(0, 10);
+    }
+    renderReceiptDraft();
+  }
+}
+
+function rcvItemPicked() {
+  const name = document.getElementById('rcvItem').value.trim().toLowerCase();
+  const item = items.find(i => i.name.toLowerCase() === name);
+  document.getElementById('rcvUnitHint').value = item
+    ? rcvUnitFor(item) + ' · par ' + item.par
+    : 'pick an item';
+}
+
+function addReceiptLine() {
+  const status = document.getElementById('rcvStatus');
+  const name = document.getElementById('rcvItem').value.trim();
+  const item = items.find(i => i.name.toLowerCase() === name.toLowerCase());
+  const qty = parseFloat(document.getElementById('rcvQty').value);
+  if (!item) { status.textContent = 'Pick an item from the list.'; status.style.color = 'var(--red)'; return; }
+  if (!qty || isNaN(qty)) { status.textContent = 'Enter a quantity.'; status.style.color = 'var(--red)'; return; }
+  rcvDraft.push({ itemId: item.id, itemName: item.name, qty: qty, unit: rcvUnitFor(item) });
+  document.getElementById('rcvQty').value = '';
+  document.getElementById('rcvItem').value = '';
+  document.getElementById('rcvUnitHint').value = 'pick an item';
+  status.textContent = '';
+  renderReceiptDraft();
+  document.getElementById('rcvItem').focus();
+}
+
+function renderReceiptDraft() {
+  const wrap = document.getElementById('rcvDraftWrap');
+  const list = document.getElementById('rcvDraftList');
+  if (!wrap || !list) return;
+  wrap.style.display = rcvDraft.length ? '' : 'none';
+  list.innerHTML = rcvDraft.map((l, i) => `
+    <div style="display:flex;align-items:center;gap:10px;padding:7px 10px;border-bottom:1px solid var(--border);font-size:13px">
+      <span style="flex:1">${escapeHtml(l.itemName)}</span>
+      <span style="font-family:'DM Mono',monospace">${fmtNum(l.qty, 2)} ${l.unit}</span>
+      <button class="edit-btn" onclick="removeReceiptLine(${i})">✕</button>
+    </div>`).join('');
+}
+
+function removeReceiptLine(i) { rcvDraft.splice(i, 1); renderReceiptDraft(); }
+
+function clearReceiptDraft() {
+  rcvDraft = [];
+  renderReceiptDraft();
+  const s = document.getElementById('rcvStatus');
+  if (s) s.textContent = '';
+}
+
+async function saveReceiptDraft() {
+  const status = document.getElementById('rcvStatus');
+  if (!rcvDraft.length) return;
+  const vendor = document.getElementById('rcvVendor').value;
+  const date = document.getElementById('rcvDate').value || new Date().toISOString().slice(0, 10);
+  const invoice = 'manual-' + date + '-' + Date.now();
+  status.textContent = 'Saving…'; status.style.color = 'var(--text-muted)';
+  try {
+    for (const l of rcvDraft) {
+      await sbFetch('/rest/v1/received_items', { method: 'POST', body: JSON.stringify({
+        vendor: vendor, invoice_number: invoice, delivery_date: date,
+        vendor_item_number: 'manual', vendor_description: l.itemName,
+        item_id: l.itemId, item_name: l.itemName,
+        qty: l.qty, unit: l.unit, qty_units: l.qty,
+        source: 'manual', status: 'confirmed', note: 'manual entry (' + vendor + ')'
+      })});
+    }
+    status.textContent = '✓ Saved ' + rcvDraft.length + ' line' + (rcvDraft.length > 1 ? 's' : '') + ' from ' + vendor;
+    status.style.color = 'var(--green)';
+    clearReceiptDraft();
+    loadReceiving();
+  } catch (e) {
+    status.textContent = 'Failed: ' + e.message; status.style.color = 'var(--red)';
+  }
+}
+
+// ============================================================
+// VARIANCE — what disappeared vs what the sales explain
+// ============================================================
+// usage    = start count + received − end count          (in the item's counting unit)
+// variance = theoretical − usage                          (NEGATIVE = product missing)
+let lastHistSnapshot = {};      // item_id -> last value written to count_history this session
+let varianceUploads = [];       // recent toast_uploads rows (theoretical usage)
+let varianceHistory = [];
+
+const OZ_PER_BOTTLE = 25.36;    // 750 ml — same basis the Toast tab uses for "≈ bottles"
+const OZ_PER_KEG = 1984;        // ½ barrel; kegs are counted as kegs
+const OZ_PER_GLASS = 5;         // wine pour, for glasses -> bottles
+const DEFAULT_UNITS_PER_CASE = 24;
+
+// Per-item bottle size (inventory_items.bottle_size_oz, taken from the vendor invoices).
+// Falls back to a 750 ml bottle when an item has no size recorded.
+function bottleOz(item) {
+  const v = Number(item && item.bottleSizeOz);
+  return v > 1 ? v : OZ_PER_BOTTLE;
+}
+
+// the live item record (usage snapshots store an old copy without bottle size)
+function liveItem(id) {
+  return (typeof items !== 'undefined' && items) ? items.find(i => i.id === id) : null;
+}
+
+// pack size (units per case) per inventory item, taken from the vendor map
+function unitsPerCaseFor(itemId) {
+  let best = 0;
+  Object.values(mapIndex || {}).forEach(m => {
+    if (m.inventory_item_id !== itemId) return;
+    const f = Number(m.unit_factor);
+    if (f > best) best = f;
+  });
+  return best > 1 ? best : DEFAULT_UNITS_PER_CASE;
+}
+
+function mergeSessions(rows) {
+  // group snapshot days into count sessions (a Sun+Mon count is ONE session)
+  const byDate = {};
+  rows.forEach(r => {
+    if (!r.session_date || !r.item_id) return;
+    (byDate[r.session_date] = byDate[r.session_date] || []).push(r);
+  });
+  const sessions = [];
+  Object.keys(byDate).sort().forEach(d => {
+    const prev = sessions[sessions.length - 1];
+    if (!prev || (new Date(d) - new Date(prev.end)) / 86400000 > 2) {
+      sessions.push({ start: d, end: d, rows: byDate[d].slice() });
+    } else {
+      prev.end = d;
+      prev.rows = prev.rows.concat(byDate[d]);
+    }
+  });
+  sessions.forEach(s => {
+    s.last = {};
+    s.rows.sort((a, b) => String(a.counted_at).localeCompare(String(b.counted_at)));
+    s.rows.forEach(r => { if (r.on_hand !== null && r.on_hand !== '') s.last[r.item_id] = Number(r.on_hand); });
+  });
+  return sessions;
+}
+
+function theoreticalFor(item, entry) {
+  if (!entry) return null;
+  const unit = itemUnitWord(item.par);
+  const kind = entry.kind;
+  const perBottle = bottleOz(item);        // 750 ml vs 1 L vs 1.75 L, per item
+  if (kind === 'spirit') {
+    const b = (entry.oz || 0) / perBottle;
+    return unit === 'cases' ? b / unitsPerCaseFor(item.id) : b;
+  }
+  if (kind === 'wine') {
+    const b = ((entry.glasses || 0) * OZ_PER_GLASS) / perBottle;
+    return unit === 'cases' ? b / unitsPerCaseFor(item.id) : b;
+  }
+  if (kind === 'wine_keg' || kind === 'draft_beer') return (entry.oz || 0) / OZ_PER_KEG;
+  if (kind === 'bottled_beer') {
+    const u = entry.units || 0;
+    return unit === 'cases' ? u / unitsPerCaseFor(item.id) : u;
+  }
+  return null;
+}
+
+function costPerUnitFor(itemId) {
+  let cost = null, bestDate = '';
+  (varianceReceived || []).forEach(r => {
+    if (r.item_id !== itemId) return;
+    const q = Number(r.qty_units);
+    const net = Number(r.net_cost);
+    if (!q || !net || isNaN(q) || isNaN(net)) return;
+    const d = r.delivery_date || '';
+    if (d >= bestDate) { bestDate = d; cost = net / q; }
+  });
+  return cost;
+}
+
+async function loadVariance() {
+  const body = document.getElementById('varianceBody');
+  const meta = document.getElementById('varianceMeta');
+  if (!body) return;
+  body.innerHTML = '<div style="padding:20px;color:var(--text-muted)">Loading…</div>';
+  try {
+    varianceHistory = await sbFetch('/rest/v1/count_history?select=item_id,on_hand,counted_at,session_date&order=counted_at.asc&limit=5000');
+    if (!receivedRows.length) {
+      receivedRows = await sbFetch('/rest/v1/received_items?select=*&order=delivery_date.desc,item_name.asc&limit=500');
+    }
+    if (!Object.keys(mapIndex).length) {
+      const map = await sbFetch('/rest/v1/vendor_item_map?select=vendor,vendor_item_number,inventory_item_name,inventory_item_id,unit_factor&limit=600');
+      mapIndex = {};
+      map.forEach(m => { mapIndex[m.vendor + '|' + m.vendor_item_number] = m; });
+    }
+    varianceReceived = receivedRows.filter(r => r.status === 'confirmed' && r.item_id);
+    varianceUploads = await sbFetch('/rest/v1/toast_uploads?select=date_range_start,date_range_end,usage,uploaded_at&order=uploaded_at.desc&limit=12');
+    renderVariance();
+  } catch (e) {
+    body.innerHTML = '<div style="padding:20px;color:var(--red)">Could not load variance data: ' + escapeHtml(e.message) + '</div>';
+  }
+}
+
+function renderVariance() {
+  const body = document.getElementById('varianceBody');
+  const summary = document.getElementById('varianceSummary');
+  const meta = document.getElementById('varianceMeta');
+  if (!body) return;
+
+  const sessions = mergeSessions(varianceHistory);
+
+  if (sessions.length < 2) {
+    if (meta) meta.textContent = '';
+    summary.innerHTML = '';
+    body.innerHTML = `
+      <div class="panel"><div class="panel-body" style="padding:22px">
+        <div style="font-size:15px;font-weight:600;margin-bottom:8px">One count on record — variance starts with your next count</div>
+        <div style="color:var(--text-muted);font-size:13px;line-height:1.6;max-width:640px">
+          Variance needs two counts to compare: <em>start + received − end = usage</em>, measured against
+          what Toast says you sold. Your count on <strong>${sessions.length ? sessions[0].end : '—'}</strong> is saved as the starting point,
+          so the next one produces the first variance report.
+          <br><br>Everything else is already in place — deliveries from Southern and Gate City are recorded in the
+          item's own counting unit, so the maths will line up.
+        </div>
+      </div></div>`;
+    return;
+  }
+
+  const start = sessions[sessions.length - 2];
+  const end = sessions[sessions.length - 1];
+  const from = start.end, to = end.end;
+
+  // theoretical usage for this window (best-overlapping Toast upload)
+  let bestUpload = null, bestOverlap = 0;
+  (varianceUploads || []).forEach(u => {
+    const s = String(u.date_range_start).slice(0, 10), e = String(u.date_range_end).slice(0, 10);
+    const lo = s > from ? s : from, hi = e < to ? e : to;
+    const days = (new Date(hi) - new Date(lo)) / 86400000;
+    if (days > bestOverlap) { bestOverlap = days; bestUpload = u; }
+  });
+  const theo = {};
+  if (bestUpload && bestUpload.usage) {
+    (Array.isArray(bestUpload.usage) ? bestUpload.usage : []).forEach(u => {
+      if (u && u.item && u.item.id) theo[u.item.id] = u;
+    });
+  }
+
+  const recv = {};
+  varianceReceived.forEach(r => {
+    const d = String(r.delivery_date || '').slice(0, 10);
+    if (d > from && d <= to) recv[r.item_id] = (recv[r.item_id] || 0) + Number(r.qty_units || 0);
+  });
+
+  const rows = [];
+  items.forEach(item => {
+    const s = start.last[item.id], e = end.last[item.id];
+    if (s === undefined || e === undefined) return;          // not counted in both sessions
+    const received = recv[item.id] || 0;
+    const usage = s + received - e;
+    const theoretical = theoreticalFor(item, theo[item.id]);
+    if (theoretical === null) return;                        // no sales basis for this item
+    const variance = theoretical - usage;                    // negative = missing
+    const threshold = Math.max(0.5, Math.abs(theoretical) * 0.10);
+    const flagged = variance < -threshold;                   // only shortfalls flag
+    const cost = costPerUnitFor(item.id);
+    rows.push({ item, start: s, received, end: e, usage, theoretical, variance, flagged,
+                dollars: cost !== null ? variance * cost : null, unit: itemUnitWord(item.par) });
+  });
+
+  const flaggedRows = rows.filter(r => r.flagged);
+  const totalDollars = flaggedRows.reduce((a, r) => a + (r.dollars || 0), 0);
+  const periodDays = Math.max(1, (new Date(to) - new Date(from)) / 86400000);
+  const coverage = bestUpload ? Math.min(1, bestOverlap / periodDays) : 0;
+  const coverageWarn = bestUpload && coverage < 0.9;
+
+  if (meta) meta.textContent = `${from} → ${to}`;
+  summary.innerHTML = `
+    <div class="panel" style="margin-bottom:14px"><div class="panel-body" style="padding:16px;display:flex;gap:26px;flex-wrap:wrap;align-items:baseline">
+      <div><div style="font-size:11px;letter-spacing:1px;color:var(--text-dim);text-transform:uppercase">Period</div>
+           <div style="font-family:'DM Mono',monospace;font-size:14px">${from} → ${to}</div></div>
+      <div><div style="font-size:11px;letter-spacing:1px;color:var(--text-dim);text-transform:uppercase">Items measured</div>
+           <div style="font-family:'DM Mono',monospace;font-size:14px">${rows.length}</div></div>
+      <div><div style="font-size:11px;letter-spacing:1px;color:var(--text-dim);text-transform:uppercase">Flagged short</div>
+           <div style="font-family:'DM Mono',monospace;font-size:14px;color:${flaggedRows.length ? 'var(--red)' : 'var(--green)'}">${flaggedRows.length}</div></div>
+      <div><div style="font-size:11px;letter-spacing:1px;color:var(--text-dim);text-transform:uppercase">Est. value missing</div>
+           <div style="font-family:'DM Mono',monospace;font-size:14px;color:${totalDollars < 0 ? 'var(--red)' : 'var(--text)'}">${totalDollars ? '$' + fmtNum(Math.abs(totalDollars), 2) : '—'}</div></div>
+      <div style="color:${coverageWarn ? 'var(--amber)' : 'var(--text-muted)'};font-size:12px;max-width:340px">${bestUpload
+          ? (coverageWarn
+              ? '⚠ The Toast report used covers only ' + Math.round(coverage * 100) + '% of this period (' + String(bestUpload.date_range_start).slice(0,10) + ' → ' + String(bestUpload.date_range_end).slice(0,10) + ') — upload the matching week for a true comparison'
+              : 'Theoretical from Toast ' + String(bestUpload.date_range_start).slice(0,10) + ' → ' + String(bestUpload.date_range_end).slice(0,10))
+          : '⚠ No Toast report covers this period yet — upload one on the Toast POS tab'}</div>
+    </div></div>`;
+
+  const onlyFlags = document.getElementById('varianceOnlyFlags');
+  const show = (onlyFlags && onlyFlags.checked) ? flaggedRows : rows;
+  if (!show.length) {
+    body.innerHTML = '<div class="panel"><div class="panel-body" style="padding:20px;color:var(--green)">Nothing short this period — every measured item is within tolerance. 🎉</div></div>';
+    return;
+  }
+
+  const line = r => {
+    const col = r.flagged ? 'var(--red)' : (r.variance > 0 ? 'var(--text-muted)' : 'var(--text)');
+    const sign = r.variance < 0 ? '' : '+';
+    return `<tr${r.flagged ? ' style="background:rgba(224,82,82,.07)"' : ''}>
+      <td style="font-weight:500">${escapeHtml(r.item.name)}</td>
+      <td><span class="tag tag-${parUnit(r.item.par).tag}">${parUnit(r.item.par).label}</span></td>
+      <td style="font-family:'DM Mono',monospace">${fmtNum(r.start, 2)}</td>
+      <td style="font-family:'DM Mono',monospace;color:var(--green)">${r.received ? '+' + fmtNum(r.received, 2) : '—'}</td>
+      <td style="font-family:'DM Mono',monospace">${fmtNum(r.end, 2)}</td>
+      <td style="font-family:'DM Mono',monospace">${fmtNum(r.usage, 2)}</td>
+      <td style="font-family:'DM Mono',monospace">${fmtNum(r.theoretical, 2)}</td>
+      <td style="font-family:'DM Mono',monospace;font-weight:600;color:${col}">${sign}${fmtNum(r.variance, 2)}</td>
+      <td style="font-family:'DM Mono',monospace;color:${col}">${r.dollars !== null ? (r.dollars < 0 ? '-' : '+') + '$' + fmtNum(Math.abs(r.dollars), 2) : '—'}</td>
+    </tr>`;
+  };
+
+  body.innerHTML = `
+    <div class="panel"><div class="panel-body" style="padding:0">
+      <div class="inv-table-wrap"><table class="inv-table">
+        <thead><tr>
+          <th>Item</th><th>Par</th><th>Start</th><th>Received</th><th>End</th><th>Usage</th><th>Theoretical</th><th>Variance</th><th>Est. $</th>
+        </tr></thead>
+        <tbody>${show.map(line).join('')}</tbody>
+      </table></div>
+    </div></div>
+    <div style="color:var(--text-muted);font-size:12px;margin-top:10px;line-height:1.6">
+      <strong style="color:var(--red)">Negative variance = product missing</strong> — more went out the door than the sales explain.
+      Positive means less disappeared than expected (usually an over-count or an unrecorded delivery).
+      Quantities are in each item's own counting unit. Flagged when the shortfall exceeds half a unit or 10% of usage.
+    </div>`;
+}
+
+// ============================================================
 // TABS
 // ============================================================
 function showTab(id) {
-  ['inventory','order','cocktails','toast','history','admin'].forEach(t => {
+  ['inventory','order','cocktails','toast','receiving','variance','history','admin'].forEach(t => {
     document.getElementById('tab-' + t).style.display = t === id ? '' : 'none';
     const mob = document.getElementById('nav-' + t);
     if (mob) mob.classList.toggle('active', t === id);
@@ -1849,6 +2568,8 @@ function showTab(id) {
     if (desk) desk.classList.toggle('active', t === id);
   });
   if (id === 'order') renderOrder();
+  if (id === 'receiving') loadReceiving();
+  if (id === 'variance') loadVariance();
   if (id === 'history') loadToastHistory();
 }
 
@@ -2369,7 +3090,7 @@ async function loadCustomItems() {
     rows.forEach(row => {
       const existing = items.find(i => i.id === row.id);
       if (!existing) {
-        items.push({ id: row.id, name: row.name, category: row.category, vendor: row.vendor || '—', cabinet: row.cabinet || '—', par: row.par, onHand: null });
+        items.push({ id: row.id, name: row.name, category: row.category, vendor: row.vendor || '—', cabinet: row.cabinet || '—', par: row.par, onHand: null, bottleSizeOz: row.bottle_size_oz });
       } else {
         // Always update par/vendor/cabinet/name from DB — DB is source of truth for admin changes
         existing.par = row.par;
@@ -2377,6 +3098,7 @@ async function loadCustomItems() {
         existing.cabinet = row.cabinet || '—';
         existing.name = row.name;
         existing.category = row.category;
+        existing.bottleSizeOz = row.bottle_size_oz;
       }
     });
   } catch(e) {
@@ -2501,6 +3223,7 @@ function startApp(session) {
     await loadCabinets();
     await loadCustomItems();
     await loadState();
+    loadReceiving();   // received-stock badges + Receiving tab data
   })();
 }
 
