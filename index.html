@@ -608,7 +608,8 @@
   <div class="controls" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
     <h3 style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:2px;color:var(--gold);margin:0">Variance · Shrink</h3>
     <span style="color:var(--text-muted);font-size:12px" id="varianceMeta"></span>
-    <label style="font-size:12px;color:var(--text-muted);display:flex;align-items:center;gap:6px;margin-left:auto;cursor:pointer">
+    <select id="variancePeriodSelect" class="filter-btn" onchange="renderVariance()" style="appearance:none;-webkit-appearance:none;background-color:var(--surface);margin-left:auto"></select>
+    <label style="font-size:12px;color:var(--text-muted);display:flex;align-items:center;gap:6px;cursor:pointer">
       <input type="checkbox" id="varianceOnlyFlags" onchange="renderVariance()" checked> only flagged
     </label>
     <button class="action-btn" onclick="loadVariance()">↻ Refresh</button>
@@ -2420,23 +2421,40 @@ async function loadVariance() {
       map.forEach(m => { mapIndex[m.vendor + '|' + m.vendor_item_number] = m; });
     }
     varianceReceived = receivedRows.filter(r => r.status === 'confirmed' && r.item_id);
-    varianceUploads = await sbFetch('/rest/v1/toast_uploads?select=date_range_start,date_range_end,usage,uploaded_at&order=uploaded_at.desc&limit=12');
+    varianceUploads = await sbFetch('/rest/v1/toast_uploads?select=date_range_start,date_range_end,usage,uploaded_at&order=uploaded_at.desc&limit=60');
     renderVariance();
   } catch (e) {
     body.innerHTML = '<div style="padding:20px;color:var(--red)">Could not load variance data: ' + escapeHtml(e.message) + '</div>';
   }
 }
 
+// Fill the period dropdown with every available session-to-session comparison,
+// most recent first. Keeps the current selection if it's still a valid period
+// (e.g. after the "only flagged" checkbox re-renders), otherwise defaults to latest.
+function populateVariancePeriods(sessions) {
+  const select = document.getElementById('variancePeriodSelect');
+  if (!select) return;
+  const prevValue = select.value;
+  const options = [];
+  for (let i = sessions.length - 1; i >= 1; i--) {
+    options.push(`<option value="${i}">${sessions[i - 1].end} → ${sessions[i].end}</option>`);
+  }
+  select.innerHTML = options.join('');
+  select.value = options.some(o => o.includes(`value="${prevValue}"`)) ? prevValue : String(sessions.length - 1);
+}
+
 function renderVariance() {
   const body = document.getElementById('varianceBody');
   const summary = document.getElementById('varianceSummary');
   const meta = document.getElementById('varianceMeta');
+  const periodSelect = document.getElementById('variancePeriodSelect');
   if (!body) return;
 
   const sessions = mergeSessions(varianceHistory);
 
   if (sessions.length < 2) {
     if (meta) meta.textContent = '';
+    if (periodSelect) periodSelect.innerHTML = '';
     summary.innerHTML = '';
     body.innerHTML = `
       <div class="panel"><div class="panel-body" style="padding:22px">
@@ -2452,8 +2470,10 @@ function renderVariance() {
     return;
   }
 
-  const start = sessions[sessions.length - 2];
-  const end = sessions[sessions.length - 1];
+  populateVariancePeriods(sessions);
+  const endIdx = Number(periodSelect && periodSelect.value) || sessions.length - 1;
+  const start = sessions[endIdx - 1];
+  const end = sessions[endIdx];
   const from = start.end, to = end.end;
 
   // theoretical usage for this window (best-overlapping Toast upload)
