@@ -8,3 +8,4 @@ Newest last. One line per session, prefixed with who did it.
 - 2026-10-06 — Hermes: the weekly Toast Product-mix pull now works unattended end to end (signs itself back into Toast, sets the report date range in the report URL instead of clicking the drifting "Last week" control, loads the item list before parsing, saves the week to History) and the weekly receiving pull is harness-free. Both verified against the live app. Details in `docs/PROJECT-STATUS.md`.
 - 2026-10-07 — Hermes: updated `docs/PROJECT-STATUS.md`.
 - 2026-10-08 — Hermes: updated `docs/PROJECT-STATUS.md`.
+- 2026-10-09 — Hermes: updated `docs/PROJECT-STATUS.md`.
