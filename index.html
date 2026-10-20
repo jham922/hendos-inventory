@@ -679,6 +679,41 @@
       </div>
       <div id="cabinetListWrap"></div>
     </div>
+
+    <!-- COCKTAIL MANAGEMENT SECTION -->
+    <div style="margin-top:28px">
+      <div style="font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-dim);border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:12px">Cocktail Builds</div>
+      <div style="margin-bottom:10px">
+        <button class="action-btn" onclick="showAddCocktail()" style="font-size:13px;padding:7px 16px">+ Add Cocktail</button>
+      </div>
+      <div id="cocktailListWrap"></div>
+    </div>
+  </div>
+
+  <!-- COCKTAIL ADD/EDIT MODAL -->
+  <div id="cocktailModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:200;align-items:center;justify-content:center">
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:28px;width:90%;max-width:520px;max-height:90vh;overflow-y:auto">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:2px;color:var(--gold);margin-bottom:20px" id="cocktailModalTitle">Add Cocktail</div>
+      <input type="hidden" id="editCocktailId">
+      <div style="margin-bottom:14px">
+        <label style="font-size:11px;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase;display:block;margin-bottom:6px">Name</label>
+        <input type="text" id="editCocktailName" class="search-input" placeholder="e.g. The Takedown" style="padding-left:14px">
+      </div>
+      <div style="margin-bottom:14px">
+        <label style="font-size:11px;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase;display:block;margin-bottom:6px">Ingredients</label>
+        <div id="cocktailIngredientRows"></div>
+        <button class="filter-btn" onclick="addCocktailIngredientRow()" style="font-size:12px;margin-top:6px">+ Add Ingredient</button>
+      </div>
+      <div style="margin-bottom:20px">
+        <label style="font-size:11px;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase;display:block;margin-bottom:6px">Serve / Build Notes</label>
+        <input type="text" id="editCocktailServe" class="search-input" placeholder="e.g. Collins glass, garnish cucumber + mint" style="padding-left:14px">
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end">
+        <button class="filter-btn" onclick="closeCocktailModal()">Cancel</button>
+        <button class="action-btn" onclick="saveCocktailAdmin()" style="padding:10px 24px">Save</button>
+      </div>
+      <div id="cocktailModalError" style="color:var(--red);font-size:12px;margin-top:10px;text-align:center"></div>
+    </div>
   </div>
 
   <!-- ADD/EDIT MODAL -->
@@ -835,6 +870,9 @@ const COCKTAILS = [
     {qty:"1.5oz", ing:"Svedka Citrus"}
   ], serve:"Happy hour build — 1.5oz Svedka Citrus (spec per Jennifer)" }
 ];
+// Stable ids for the hardcoded defaults above, so Admin edits can override them in Supabase
+// the same way editing a default inventory item inserts a tracked row — see saveItemAdmin().
+COCKTAILS.forEach((c, i) => { c.id = 'default-' + (i + 1); });
 
 const DEFAULT_ITEMS = [
   // SPIRITS
@@ -2968,6 +3006,157 @@ async function saveRenameCabinet(index, oldName) {
   }
 }
 
+// ============================================================
+// COCKTAIL BUILDS (Admin)
+// ============================================================
+function renderAdminCocktailList() {
+  const wrap = document.getElementById('cocktailListWrap');
+  if (!wrap) return;
+  if (!COCKTAILS.length) {
+    wrap.innerHTML = '<div style="color:var(--text-dim);font-size:13px">No cocktails yet.</div>';
+    return;
+  }
+  const sorted = [...COCKTAILS].sort((a, b) => a.name.localeCompare(b.name));
+  wrap.innerHTML = `<div class="panel"><div class="panel-body" style="overflow-x:auto">
+    <table class="admin-table">
+      <thead><tr><th>Cocktail</th><th>Ingredients</th><th>Serve</th><th>Actions</th></tr></thead>
+      <tbody>
+        ${sorted.map(c => `<tr>
+          <td style="font-weight:500">${escapeHtml(c.name)}</td>
+          <td><span style="font-size:11px;color:var(--text-muted)">${c.ingredients.length} ingredient${c.ingredients.length === 1 ? '' : 's'}</span></td>
+          <td><span style="font-size:11px;color:var(--text-muted)">${escapeHtml(c.serve || '')}</span></td>
+          <td>
+            <button class="edit-btn" onclick="editCocktail('${c.id}')">Edit</button>
+            <button class="del-btn" onclick="deleteCocktail('${c.id}','${c.name.replace(/'/g,"\\'")}')">Remove</button>
+          </td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
+  </div></div>`;
+}
+
+function addCocktailIngredientRow(qty, ing) {
+  const wrap = document.getElementById('cocktailIngredientRows');
+  const row = document.createElement('div');
+  row.style.cssText = 'display:flex;gap:8px;margin-bottom:6px;align-items:center';
+  row.innerHTML = `
+    <input type="text" class="search-input cocktail-ing-qty" placeholder="qty (e.g. 1.5oz)" style="padding-left:14px;max-width:120px">
+    <input type="text" class="search-input cocktail-ing-name" placeholder="ingredient" style="padding-left:14px;flex:1">
+    <button class="del-btn" onclick="this.closest('div').remove()" style="margin-left:0">✕</button>
+  `;
+  wrap.appendChild(row);
+  row.querySelector('.cocktail-ing-qty').value = qty || '';
+  row.querySelector('.cocktail-ing-name').value = ing || '';
+}
+
+function showAddCocktail() {
+  document.getElementById('cocktailModalTitle').textContent = 'Add Cocktail';
+  document.getElementById('editCocktailId').value = '';
+  document.getElementById('editCocktailName').value = '';
+  document.getElementById('editCocktailServe').value = '';
+  document.getElementById('cocktailIngredientRows').innerHTML = '';
+  addCocktailIngredientRow();
+  document.getElementById('cocktailModalError').textContent = '';
+  document.getElementById('cocktailModal').style.display = 'flex';
+}
+
+function editCocktail(id) {
+  const c = COCKTAILS.find(c => c.id === id);
+  if (!c) return;
+  document.getElementById('cocktailModalTitle').textContent = 'Edit Cocktail';
+  document.getElementById('editCocktailId').value = id;
+  document.getElementById('editCocktailName').value = c.name;
+  document.getElementById('editCocktailServe').value = c.serve || '';
+  document.getElementById('cocktailIngredientRows').innerHTML = '';
+  c.ingredients.forEach(i => addCocktailIngredientRow(i.qty, i.ing));
+  if (!c.ingredients.length) addCocktailIngredientRow();
+  document.getElementById('cocktailModalError').textContent = '';
+  document.getElementById('cocktailModal').style.display = 'flex';
+}
+
+function closeCocktailModal() {
+  document.getElementById('cocktailModal').style.display = 'none';
+}
+
+async function saveCocktailAdmin() {
+  const id = document.getElementById('editCocktailId').value;
+  const name = document.getElementById('editCocktailName').value.trim();
+  const serve = document.getElementById('editCocktailServe').value.trim();
+  const errEl = document.getElementById('cocktailModalError');
+  errEl.textContent = '';
+
+  if (!name) { errEl.textContent = 'Name is required'; return; }
+
+  const ingredients = [];
+  document.querySelectorAll('#cocktailIngredientRows > div').forEach(row => {
+    const qty = row.querySelector('.cocktail-ing-qty').value.trim();
+    const ing = row.querySelector('.cocktail-ing-name').value.trim();
+    if (ing) ingredients.push({ qty: qty || '—', ing });
+  });
+  if (!ingredients.length) { errEl.textContent = 'At least one ingredient is required'; return; }
+
+  const isNew = !id;
+  const newId = id || ('cocktail_' + Date.now());
+  const record = { id: newId, name, ingredients, serve, updated_at: new Date().toISOString() };
+
+  try {
+    if (isNew) {
+      await sbFetch('/rest/v1/cocktail_builds', { method: 'POST', body: JSON.stringify(record) });
+      COCKTAILS.push({ id: newId, name, ingredients, serve });
+    } else {
+      const existing = await sbFetch('/rest/v1/cocktail_builds?id=eq.' + encodeURIComponent(id) + '&select=id');
+      if (existing && existing.length > 0) {
+        await sbFetch('/rest/v1/cocktail_builds?id=eq.' + encodeURIComponent(id), { method: 'PATCH', body: JSON.stringify({ name, ingredients, serve, updated_at: new Date().toISOString() }) });
+      } else {
+        // First time editing a default cocktail — insert it into DB so it becomes tracked
+        await sbFetch('/rest/v1/cocktail_builds', { method: 'POST', body: JSON.stringify(record) });
+      }
+      const local = COCKTAILS.find(c => c.id === id);
+      if (local) Object.assign(local, { name, ingredients, serve });
+    }
+    closeCocktailModal();
+    renderAdminCocktailList();
+    renderCocktails();
+  } catch(e) {
+    console.error('Cocktail save error:', e);
+    errEl.textContent = 'Save failed: ' + e.message;
+  }
+}
+
+async function deleteCocktail(id, name) {
+  if (!confirm('Remove "' + name + '" from Cocktail Builds?')) return;
+  try {
+    await sbFetch('/rest/v1/cocktail_builds?id=eq.' + encodeURIComponent(id), { method: 'DELETE' });
+    const idx = COCKTAILS.findIndex(c => c.id === id);
+    if (idx !== -1) COCKTAILS.splice(idx, 1);
+    renderAdminCocktailList();
+    renderCocktails();
+  } catch(e) {
+    alert('Delete failed: ' + e.message);
+  }
+}
+
+// On load, pull any custom/overridden cocktails from Supabase — same override pattern as loadCustomItems
+async function loadCustomCocktails() {
+  try {
+    const rows = await sbFetch('/rest/v1/cocktail_builds?select=*');
+    rows.forEach(row => {
+      const existing = COCKTAILS.find(c => c.id === row.id);
+      if (!existing) {
+        COCKTAILS.push({ id: row.id, name: row.name, ingredients: row.ingredients, serve: row.serve });
+      } else {
+        existing.name = row.name;
+        existing.ingredients = row.ingredients;
+        existing.serve = row.serve;
+      }
+    });
+  } catch(e) {
+    console.log('Could not load custom cocktails:', e);
+  }
+  renderCocktails();
+  renderAdminCocktailList();
+}
+
 function renderAdminTable() {
   const search = document.getElementById('adminSearch').value.toLowerCase();
   const cat = document.getElementById('adminCatFilter').value;
@@ -3242,6 +3431,7 @@ function startApp(session) {
     await loadVendors();
     await loadCabinets();
     await loadCustomItems();
+    await loadCustomCocktails();
     await loadState();
     loadReceiving();   // received-stock badges + Receiving tab data
   })();

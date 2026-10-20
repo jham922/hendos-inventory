@@ -8,6 +8,9 @@ A mobile-first inventory management app for front-of-house bar staff. Used durin
 - **Order dashboard** — Auto-generates order lists for items below par, grouped by vendor; order quantity = par minus on-hand count
 - **Cocktail recipes** — Quick reference for ingredients and quantities
 - **Toast POS integration** — Upload a CSV export from Toast to cross-reference sales data
+- **Receiving** — Log vendor deliveries via automated invoice pull or manual multi-line entry for smaller vendors
+- **Variance / Shrink** — Compares each count period against Toast's theoretical usage to flag shortfalls and estimate dollar impact; a period dropdown lets you review any past count-to-count comparison, not just the latest
+- **Upload history** — Browse past Toast POS uploads
 - **Admin panel** — Password-protected item management: add/edit items, set par levels, assign vendors; add new vendors and rename existing ones
 
 ## Categories
