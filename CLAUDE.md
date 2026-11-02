@@ -14,6 +14,9 @@ A single-file HTML inventory management app for the front-of-house at Hendo's Ba
 - **Order Dashboard** — Auto-generates order list for items below par, grouped by vendor; exportable/printable
 - **Cocktails** — Cocktail recipes with ingredients and quantities
 - **Toast** — Upload a CSV export from Toast POS to cross-reference sales data
+- **Receiving** — Log vendor deliveries: automated invoice pull plus manual multi-line entry for smaller vendors; configurable "show" window (`rcvWindow`, default 4 weeks)
+- **Variance** — Compares each count period's usage (start + received − end) against Toast's theoretical usage; negative = product missing, flagged red. A period dropdown (`variancePeriodSelect`) lists every count-to-count comparison derivable from `count_history`, not just the latest — picking one re-renders the same breakdown table for that period
+- **History** — Browse past Toast POS uploads
 - **Admin** — Password-protected; add/edit items, set par levels, assign vendors; add new vendors and rename existing ones
 
 ## Categories
@@ -58,6 +61,8 @@ Admins can add new vendors or rename existing ones from the Admin tab. Renaming 
 - Supabase (Postgres) stores live counts in the `inventory_counts` table (`id`, `on_hand`, `updated_by`, `updated_at`)
 - Supabase stores custom/admin-created items in the `inventory_items` table
 - Supabase stores vendors in the `vendors` table (`id`, `name`, `created_at`) — loaded on startup with fallback to hardcoded defaults if unavailable
+- Supabase stores one row per item per count session in `count_history` (`item_id`, `on_hand`, `counted_at`, `session_date`) — the Variance tab's only source of historical counts; nothing about past variance periods is stored separately, they're recomputed from this plus `received_items` and `toast_uploads`
+- Supabase stores confirmed deliveries in `received_items` and weekly Toast product-mix pulls in `toast_uploads` (`usage` jsonb, keyed by item)
 - localStorage is used as an offline fallback
 - The app polls Supabase every 15 seconds to sync counts from other users
 
